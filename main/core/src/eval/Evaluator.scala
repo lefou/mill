@@ -57,7 +57,7 @@ case class Evaluator(home: os.Path,
     val timings = mutable.ArrayBuffer.empty[(Either[Task[_], Labelled[_]], Int, Boolean)]
 
     // Increment the counter message by 1 to go from 1/10 to 10/10
-    object NextCounterMsg extends Function0[String] {
+    object NextCounterMsg {
       val taskCount = sortedGroups.keyCount
       var counter: Int = 0
       def apply(): String = {
@@ -124,7 +124,7 @@ case class Evaluator(home: os.Path,
                     terminal,
                     group,
                     results,
-                    NextCounterMsg
+                    NextCounterMsg()
                   )
 
                 val endTime = System.currentTimeMillis()
@@ -183,7 +183,7 @@ case class Evaluator(home: os.Path,
               terminal,
               group,
               results,
-              NextCounterMsg
+              NextCounterMsg()
             )
 
           evaluated.appendAll(newEvaluated)
@@ -249,7 +249,7 @@ case class Evaluator(home: os.Path,
     terminal: Either[Task[_], Labelled[_]],
     group: Agg[Task[_]],
     results: collection.Map[Task[_], Result[(Any, Int)]],
-    nextCounterMsg: () => String
+    counterMsg: String
   ): Evaluated = {
 
     val externalInputsHash = scala.util.hashing.MurmurHash3.orderedHash(
@@ -271,7 +271,7 @@ case class Evaluator(home: os.Path,
           inputsHash,
           paths = None,
           maybeTargetLabel = None,
-          nextCounterMsg = nextCounterMsg
+          counterMsg = counterMsg
         )
         Evaluated(newResults, newEvaluated, false)
       case Right(labelledNamedTask) =>
@@ -323,7 +323,7 @@ case class Evaluator(home: os.Path,
               inputsHash,
               paths = Some(paths),
               maybeTargetLabel = Some(msgParts.mkString),
-              nextCounterMsg = nextCounterMsg
+              counterMsg = counterMsg
             )
 
             newResults(labelledNamedTask.task) match{
@@ -397,7 +397,7 @@ case class Evaluator(home: os.Path,
     inputsHash: Int,
     paths: Option[Evaluator.Paths],
     maybeTargetLabel: Option[String],
-    nextCounterMsg: () => String
+    counterMsg: String
   ) = {
 
     val newEvaluated = mutable.Buffer.empty[Task[_]]
@@ -413,9 +413,6 @@ case class Evaluator(home: os.Path,
 
       val logRun = inputResults.forall(_.isInstanceOf[Result.Success[_]])
 
-      // we need to consume once, even when we don't log,
-      // to have proper counter at the end
-      val counterMsg = nextCounterMsg()
       if (logRun) {
         log.ticker(s"[$counterMsg] $targetLabel ")
       }
