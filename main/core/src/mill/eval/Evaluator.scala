@@ -47,6 +47,9 @@ case class Evaluator(home: os.Path,
   def evaluate(goals: Agg[Task[_]]): Evaluator.Results = {
     os.makeDir.all(outPath)
 
+    // we need to collect all relevant logging info while developing
+    val evalLog = MultiLogger(true, this.log, new FileLogger(false, outPath / "evaluator.log", true, append = true))
+
     val (sortedGroups, transitive) = Evaluator.plan(rootModule, goals)
 
     // Mutable collector for all evaluated tasks
@@ -75,15 +78,17 @@ case class Evaluator(home: os.Path,
       // TODO: make sure, multiple goals run in order, e.g. clean compile
 
       val executorService = Executors.newFixedThreadPool(4)
-      log.debug(s"Created executor: ${executorService}")
+      evalLog.debug(s"Created executor: ${executorService}")
       val completionService = new ExecutorCompletionService[(TerminalGroup, Evaluated)](executorService)
 
       // The scheduled and not yet finished futures (Java!)
-      var futures = List[(java.util.concurrent.Future[(TerminalGroup, Evaluated)], Either[Task[_], Labelled[Any]])]()
+      var futures = List[(java.util.concurrent.Future[(TerminalGroup, Evaluated)], TerminalGroup)]()
 
       try {
 
         val interGroupDeps: Map[TerminalGroup, Seq[TerminalGroup]] = findInterGroupDeps(sortedGroups)
+        evalLog.debug(s"${interGroupDeps}")
+
 
         // State holders, only written to from same thread
         // The unprocessed terminal groups
@@ -93,7 +98,7 @@ case class Evaluator(home: os.Path,
         // The finished terminal groups
         var done = List[TerminalGroup]()
 
-        log.debug(s"Work: ${work.size} -- ${work.map(t => printTerm(t._1)).mkString(", ")}")
+        evalLog.debug(s"Work: ${work.size} -- ${work.map(t => printTerm(t._1)).mkString(", ")}")
 
         /**
          * Checks for terminal groups, that have no unresolved dependencies and schedule them to run via the executor service.
@@ -118,8 +123,8 @@ case class Evaluator(home: os.Path,
           work = newWork
           inProgress = inProgress ++ newInProgress
 
-          if(!newInProgress.isEmpty)
-          log.debug(s"Scheduling new tasks: ${newInProgress.map(t => printTerm(t._1)).mkString(", ")}")
+          if (!newInProgress.isEmpty)
+            evalLog.debug(s"Scheduling new tasks: ${newInProgress.map(t => printTerm(t._1)).mkString(", ")}")
 
           // schedule for parallel execution
           newInProgress.foreach {
@@ -127,15 +132,15 @@ case class Evaluator(home: os.Path,
 
               val missingDependencies = group.indexed.filter(g => !results.contains(g) && !group.contains(g))
               if (!missingDependencies.isEmpty) {
-                log.error(s"Missing resolved dependencies for terminal group: ${printTerm(terminal)}\n  ${missingDependencies.mkString(",\n  ")}")
+                evalLog.error(s"Missing resolved dependencies for terminal group: ${printTerm(terminal)}\n  ${missingDependencies.mkString(",\n  ")}")
               }
 
               val workerFut: java.util.concurrent.Future[(TerminalGroup, Evaluated)] =
                 completionService.submit { () =>
-                  log.debug(s"Starting evaluation of terminal group: ${printTerm(terminal)}")
+                  evalLog.debug(s"Evaluating: ${printTerm(terminal)}")
                   val startTime = System.currentTimeMillis()
 
-                  val res @ Evaluated(newResults, newEvaluated, cached) =
+                  val res@Evaluated(newResults, newEvaluated, cached) =
                     evaluateGroupCached(
                       terminal,
                       group,
@@ -144,23 +149,24 @@ case class Evaluator(home: os.Path,
                     )
 
                   val endTime = System.currentTimeMillis()
-                  log.debug(s"Finished evaluation of terminal group: ${printTerm(terminal)}")
+                  evalLog.debug(s"Finished evaluation: ${printTerm(terminal)}")
                   curWork -> res
 
                 }
-              log.debug(s"New future: ${workerFut} for task: ${printTerm(terminal)}")
-              futures = futures ++ List(workerFut -> terminal)
+              evalLog.debug(s"New future: ${workerFut} for task: ${printTerm(terminal)}")
+              futures = futures ++ List(workerFut -> curWork)
           }
-          log.debug("Finished scheduleWork")
+          evalLog.debug("Finished scheduleWork")
         }
 
         scheduleWork()
 
         while (futures.size > 0) {
-          log.debug(s"Waiting for next future completion of ${executorService}")
+          evalLog.debug(s"Waiting for next future completion of ${executorService}")
           val compFuture = completionService.take()
-          val compTaskName = futures.find(_._1 == compFuture).map(ft => printTerm(ft._2))
-          log.debug(s"Completed future: ${compFuture} for task ${compTaskName.getOrElse("NOT FOUND")}")
+          val compTask = futures.find(_._1 == compFuture).map(_._2)
+          val compTaskName = compTask.map(t => printTerm(t._1))
+          evalLog.debug(s"Completed future: ${compFuture} for task ${compTaskName.getOrElse("NOT FOUND")}")
           futures = futures.filterNot(_._1 == compFuture)
           try {
             val (
@@ -177,7 +183,9 @@ case class Evaluator(home: os.Path,
             scheduleWork()
           } catch {
             case e: ExecutionException =>
-              log.error(s"task future [${compTaskName.getOrElse(compFuture)}] failed: ${e.getCause()}")
+              evalLog.error(s"task future [${compTaskName.getOrElse(compFuture)}] failed: ${e.getCause()}")
+              evalLog.debug(s"Current failed terminal group: ${compTask}")
+              evalLog.debug(s"Direct dependencies of current failed terminal group: ${compTask.map(t => interGroupDeps(t).map(l => printTerm(l._1)))}")
               throw e
           }
 
@@ -185,8 +193,8 @@ case class Evaluator(home: os.Path,
 
       } catch {
         case NonFatal(e) =>
-          log.error(s"Execption caught: ${e}")
-          log.debug(s"left futures:\n  ${futures.map(f => f._1 -> printTerm(f._2)).mkString(",\n  ")}")
+          evalLog.error(s"Execption caught: ${e}")
+          evalLog.debug(s"left futures:\n  ${futures.map(f => f._1 -> printTerm(f._2._1)).mkString(",\n  ")}")
           // stop pending jobs
           futures.foreach(_._1.cancel(false))
           // break while-loop
@@ -195,7 +203,7 @@ case class Evaluator(home: os.Path,
       } finally {
 
         // done, cleanup
-        log.debug(s"Shuting down executor service: ${executorService}")
+        evalLog.debug(s"Shuting down executor service: ${executorService}")
         executorService.shutdownNow()
       }
 
