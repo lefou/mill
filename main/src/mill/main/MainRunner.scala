@@ -30,6 +30,10 @@ class MainRunner(val config: ammonite.main.Cli.Config,
     stdIn, outprintStream, errPrintStream
   ){
 
+  override val colors = if (config.colored.getOrElse(Main.isInteractive()))
+    Colors.Default.copy(info = fansi.Color.LightBlue, comment = fansi.Color.LightBlue)
+  else Colors.BlackWhite
+
   var stateCache  = stateCache0
 
   override def watchAndWait(watched: Seq[(os.Path, Long)]) = {
