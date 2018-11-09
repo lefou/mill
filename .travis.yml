@@ -8,11 +8,17 @@ matrix:
     env: CI_SCRIPT=ci/test-mill-release.sh
     jdk: oraclejdk8
   - stage: build
+    env: CI_SCRIPT=ci/test-mill-release.sh MILL_THREAD_COUNT=2
+    jdk: oraclejdk8
+  - stage: build
     env: CI_SCRIPT=ci/test-mill-release.sh
     jdk: oraclejdk9
 
   - stage: build
     env: CI_SCRIPT=ci/test-mill-dev.sh
+    jdk: oraclejdk8
+  - stage: build
+    env: CI_SCRIPT=ci/test-mill-dev.sh MILL_THREAD_COUNT=2
     jdk: oraclejdk8
   - stage: build
     env: CI_SCRIPT=ci/test-mill-dev.sh
@@ -25,10 +31,19 @@ matrix:
     env: CI_SCRIPT=ci/test-mill-0.sh
     jdk: oraclejdk8
   - stage: build
+    env: CI_SCRIPT=ci/test-mill-0.sh MILL_THREAD_COUNT=2
+    jdk: oraclejdk8
+  - stage: build
     env: CI_SCRIPT=ci/test-mill-1.sh
     jdk: oraclejdk8
   - stage: build
+    env: CI_SCRIPT=ci/test-mill-1.sh MILL_THREAD_COUNT=2
+    jdk: oraclejdk8
+  - stage: build
     env: CI_SCRIPT=ci/test-mill-2.sh
+    jdk: oraclejdk9
+  - stage: build
+    env: CI_SCRIPT=ci/test-mill-2.sh MILL_THREAD_COUNT=2
     jdk: oraclejdk9
 
 
