@@ -5,45 +5,71 @@ dist: trusty
 matrix:
   include:
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-release.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-release.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-release.sh MILL_THREAD_COUNT=2
+    env:
+    - CI_SCRIPT=ci/test-mill-release.sh
+    - MILL_THREAD_COUNT=2
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-release.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-release.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk9
 
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-dev.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-dev.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-dev.sh MILL_THREAD_COUNT=2
+    env:
+    - CI_SCRIPT=ci/test-mill-dev.sh
+    - MILL_THREAD_COUNT=2
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-dev.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-dev.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk9
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-bootstrap.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-bootstrap.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk9
 
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-0.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-0.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-0.sh MILL_THREAD_COUNT=2
+    env:
+    - CI_SCRIPT=ci/test-mill-0.sh
+    - MILL_THREAD_COUNT=2
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-1.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-1.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-1.sh MILL_THREAD_COUNT=2
+    env:
+    - CI_SCRIPT=ci/test-mill-1.sh
+    - MILL_THREAD_COUNT=2
     jdk: oraclejdk8
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-2.sh
+    env:
+    - CI_SCRIPT=ci/test-mill-2.sh
+    - MILL_THREAD_COUNT=1
     jdk: oraclejdk9
   - stage: build
-    env: CI_SCRIPT=ci/test-mill-2.sh MILL_THREAD_COUNT=2
+    env:
+    - CI_SCRIPT=ci/test-mill-2.sh
+    - MILL_THREAD_COUNT=2
     jdk: oraclejdk9
 
 
