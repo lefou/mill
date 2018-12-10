@@ -1,14 +1,13 @@
 package mill.main
 
+import scala.collection.mutable
 
+import mill.api.Strict.Agg
 import mill.define.Applicative.ApplyHandler
 import mill.define.Segment.Label
 import mill.define._
 import mill.eval.{Evaluator, Result}
 
-import mill.api.Strict.Agg
-
-import scala.collection.mutable
 object ReplApplyHandler{
   def apply[T](home: os.Path,
                disableTicker: Boolean,
@@ -16,7 +15,8 @@ object ReplApplyHandler{
                pprinter0: pprint.PPrinter,
                rootModule: mill.define.BaseModule,
                discover: Discover[_],
-               debugLog: Boolean) = {
+               debugLog: Boolean,
+               systemProperties: Map[String, String]): ReplApplyHandler = {
     new ReplApplyHandler(
       pprinter0,
       new Evaluator(
@@ -34,7 +34,8 @@ object ReplApplyHandler{
           System.in,
           debugEnabled = debugLog
         )
-      )
+      ),
+      systemProperties
     )
   }
   def pprintCross(c: mill.define.Cross[_], evaluator: Evaluator) = {
@@ -111,8 +112,15 @@ object ReplApplyHandler{
   }
 
 }
+
 class ReplApplyHandler(pprinter0: pprint.PPrinter,
-                       val evaluator: Evaluator) extends ApplyHandler[Task] {
+                       val evaluator: Evaluator,
+                       systemProperties: Map[String, String]) extends ApplyHandler[Task] {
+
+  systemProperties.foreach {case (k,v) =>
+    System.setProperty(k,v)
+  }
+
   // Evaluate classLoaderSig only once in the REPL to avoid busting caches
   // as the user enters more REPL commands and changes the classpath
   val classLoaderSig = Evaluator.classLoaderSig

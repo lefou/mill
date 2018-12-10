@@ -21,7 +21,8 @@ trait MillServerMain[T]{
             stdout: PrintStream,
             stderr: PrintStream,
             env : Map[String, String],
-            setIdle: Boolean => Unit): (Boolean, Option[T])
+            setIdle: Boolean => Unit,
+            systemProperties: Map[String, String]): (Boolean, Option[T])
 }
 
 object MillServerMain extends mill.main.MillServerMain[Evaluator.State]{
@@ -44,6 +45,7 @@ object MillServerMain extends mill.main.MillServerMain[Evaluator.State]{
       mill.main.client.Locks.files(args0(0))
     ).run()
   }
+
   def main0(args: Array[String],
             stateCache: Option[Evaluator.State],
             mainInteractive: Boolean,
@@ -51,7 +53,8 @@ object MillServerMain extends mill.main.MillServerMain[Evaluator.State]{
             stdout: PrintStream,
             stderr: PrintStream,
             env : Map[String, String],
-            setIdle: Boolean => Unit) = {
+            setIdle: Boolean => Unit,
+            systemProperties: Map[String, String]) = {
     MillMain.main0(
       args,
       stateCache,
@@ -60,7 +63,8 @@ object MillServerMain extends mill.main.MillServerMain[Evaluator.State]{
       stdout,
       stderr,
       env,
-      setIdle
+      setIdle,
+      systemProperties
     )
   }
 }
@@ -127,6 +131,7 @@ class Server[T](lockBase: String,
     }
     val args = Util.parseArgs(argStream)
     val env = Util.parseMap(argStream)
+    val systemProperties = Util.parseMap(argStream)
     argStream.close()
 
     @volatile var done = false
@@ -141,7 +146,8 @@ class Server[T](lockBase: String,
           stdout,
           stderr,
           env.asScala.toMap,
-          idle = _
+          idle = _,
+          systemProperties.asScala.toMap
         )
 
         sm.stateCache = newStateCache
