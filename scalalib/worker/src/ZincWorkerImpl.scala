@@ -77,13 +77,17 @@ class ZincWorkerImpl(compilerBridge: Either[
       case Left((ctx0, compilerBridgeClasspath, srcJars)) =>
         val workingDir = ctx0.dest / scalaVersion
         val compiledDest = workingDir / 'compiled
-        if (!os.exists(workingDir)) {
+        if (!os.exists(compiledDest) || os.list(compiledDest).isEmpty) {
           ctx0.log.info("Compiling compiler interface...")
 
           os.makeDir.all(workingDir)
           os.makeDir.all(compiledDest)
 
           val sourceFolder = mill.api.IO.unpackZip(srcJars(scalaVersion, scalaOrganization))(workingDir)
+          if(os.list(sourceFolder.path).isEmpty) {
+            ctx0.log.error(s"Unpacked compiler interface source dir is empty. Source jars: ${srcJars(scalaVersion, scalaOrganization)}")
+          }
+
           val classloader = mill.api.ClassLoader.create(compilerJars.map(_.toURI.toURL), null)(ctx0)
           val compilerMain = classloader.loadClass(
             if (isDotty(scalaVersion)) "dotty.tools.dotc.Main"
@@ -94,8 +98,11 @@ class ZincWorkerImpl(compilerBridge: Either[
             "-classpath", (compilerJars ++ compilerBridgeClasspath).mkString(File.pathSeparator)
           ) ++ os.walk(sourceFolder.path).filter(_.ext == "scala").map(_.toString)
 
-          compilerMain.getMethod("process", classOf[Array[String]])
-            .invoke(null, argsArray)
+          val success = compilerMain.getMethod("process", classOf[Array[String]])
+            .invoke(null, argsArray).asInstanceOf[Boolean]
+          if (!success) {
+            ctx0.log.error("Compiling compiler interface failed")
+          }
         }
         compiledDest
     }
