@@ -135,7 +135,20 @@ object MillMain {
           stderr.println("Build repl needs to be run with the -i/--interactive flag")
           (false, stateCache)
         }else{
-          val systemProps = initialSystemProperties ++ extraSystemProperties
+          // We check for existence of JAVA_OPTS env variable and extract the `-D` parts
+          val javaOptsProps = env.get("JAVA_OPTS").toSeq
+            .flatMap(_.split("[ ]"))
+            .filter(_.startsWith("-D"))
+            .flatMap { p =>
+              // We use the resulting prop value instead of the parsed env param
+              // to avoid a complex parser (e.g. quoted strings) and possible later overrides
+              val propName = p.split("[=]", 2)(0).substring(2)
+              System.getProperty(propName) match {
+                case null => Seq() // who knows why we parsed this?
+                case propVal => Seq(propName -> propVal)
+              }
+            }.toMap
+          val systemProps = initialSystemProperties ++ javaOptsProps ++ extraSystemProperties
 
           val config =
             if(!repl) cliConfig
