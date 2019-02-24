@@ -24,7 +24,7 @@ object MillMain {
       System.err,
       System.getenv().asScala.toMap,
       b => (),
-      System.getProperties().asScala.toMap
+      initialSystemProperties = Map()
     )
     System.exit(if (result) 0 else 1)
   }
@@ -125,6 +125,8 @@ object MillMain {
             stderr.println("Build repl needs to be run with the -i/--interactive flag")
             (false, stateCache)
           } else {
+            val systemProps = initialSystemProperties ++ extraSystemProperties
+
             val config =
               if (!repl) cliConfig
               else cliConfig.copy(
@@ -137,8 +139,8 @@ object MillMain {
                    |  repl.pprinter(),
                    |  build.millSelf.get,
                    |  build.millDiscover,
-                   |  $debugLog,
-                   |  ${initialSystemProperties ++ extraSystemProperties}
+                   |  debugLog = $debugLog,
+                   |  systemProperties = ${systemProps}
                    |)
                    |repl.pprinter() = replApplyHandler.pprinter
                    |import replApplyHandler.generatedEval._
@@ -154,8 +156,8 @@ object MillMain {
               stateCache,
               env,
               setIdle,
-              debugLog,
-              initialSystemProperties ++ extraSystemProperties
+              debugLog = debugLog,
+              systemProperties = systemProps
             )
 
             if (mill.main.client.Util.isJava9OrAbove) {
