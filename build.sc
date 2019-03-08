@@ -389,16 +389,31 @@ def launcherScript(shellJvmArgs: Seq[String],
     shellCommands = {
       val jvmArgsStr = shellJvmArgs.mkString(" ")
       def java(mainClass: String) =
-        s"""exec java $jvmArgsStr $$JAVA_OPTS -cp "${shellClassPath.mkString(":")}" $mainClass "$$@""""
+        s"""exec $$JVM $jvmArgsStr $$JAVA_OPTS -cp "${shellClassPath.mkString(":")}" $mainClass "$$@""""
 
-      s"""case "$$1" in
-         |  -i | --interactive )
-         |    ${java("mill.MillMain")}
-         |    ;;
-         |  *)
-         |    ${java("mill.main.client.MillClientMain")}
-         |    ;;
-         |esac""".stripMargin
+      s"""JVM=java
+         |for arg in "$$@"; do
+         |  if [ -n "$$CJVM" ]; then
+         |    if [ -f "$$arg/bin/java" ]; then
+         |      JVM=$$arg/bin/java
+         |    fi
+         |    unset CJVM
+         |    shift
+         |  else
+         |    case "$$arg" in
+         |      -i | --interactive )
+         |        ${java("mill.MillMain")}
+         |        ;;
+         |      -jh | --java-home )
+         |        CJVM="change"
+         |        shift
+         |        ;;
+         |      *)
+         |        ${java("mill.main.client.MillClientMain")}
+         |        ;;
+         |    esac
+         |  fi
+         |done""".stripMargin
     },
     cmdCommands = {
       val jvmArgsStr = cmdJvmArgs.mkString(" ")
