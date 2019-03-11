@@ -389,38 +389,30 @@ def launcherScript(shellJvmArgs: Seq[String],
     shellCommands = {
       val jvmArgsStr = shellJvmArgs.mkString(" ")
       def java(mainClass: String) =
-        s"""exec $$JVM $jvmArgsStr $$JAVA_OPTS -cp "${shellClassPath.mkString(":")}" $mainClass "$$@""""
+        s"""exec $$JAVACMD $jvmArgsStr $$JAVA_OPTS -cp "${shellClassPath.mkString(":")}" $mainClass "$$@"""".stripMargin
 
-      s"""JVM=java
-         |for arg in "$$@"; do
-         |  if [ -n "$$CJVM" ]; then
-         |    if [ -f "$$arg/bin/java" ]; then
-         |      JVM=$$arg/bin/java
-         |    fi
-         |    unset CJVM
-         |    shift
-         |  else
-         |    case "$$arg" in
-         |      -i | --interactive )
-         |        ${java("mill.MillMain")}
-         |        ;;
-         |      -jh | --java-home )
-         |        CJVM="change"
-         |        shift
-         |        ;;
-         |      *)
-         |        ${java("mill.main.client.MillClientMain")}
-         |        ;;
-         |    esac
-         |  fi
-         |done""".stripMargin
+      s"""if [ -z "$$JAVA_HOME" ] ; then
+         |  JAVACMD="java"
+         |else
+         |  JAVACMD="$$JAVA_HOME/bin/java"
+         |fi
+         |case "$$1" in
+         |  -i | --interactive )
+         |    ${java("mill.MillMain")}
+         |    ;;
+         |  *)
+         |    ${java("mill.main.client.MillClientMain")}
+         |    ;;
+         |esac""".stripMargin
     },
     cmdCommands = {
       val jvmArgsStr = cmdJvmArgs.mkString(" ")
       def java(mainClass: String) =
-        s"""java $jvmArgsStr %JAVA_OPTS% -cp "${cmdClassPath.mkString(";")}" $mainClass %*"""
+        s""""%JAVACMD%" $jvmArgsStr %JAVA_OPTS% -cp "${cmdClassPath.mkString(";")}" $mainClass %*""".stripMargin
 
-      s"""if "%1" == "-i" set _I_=true
+      s"""set "JAVACMD=java.exe"
+         |if not "%JAVA_HOME%"=="" set "JAVACMD=%JAVA_HOME%\\bin\\java.exe"
+         |if "%1" == "-i" set _I_=true
          |if "%1" == "--interactive" set _I_=true
          |if defined _I_ (
          |  ${java("mill.MillMain")}
