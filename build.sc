@@ -396,6 +396,12 @@ def launcherScript(shellJvmArgs: Seq[String],
          |else
          |  JAVACMD="$$JAVA_HOME/bin/java"
          |fi
+         |if [ "x$$1" = "x--java-home" ] ; then
+         |  if [ -d "$$2" ] ; then
+         |    JAVA_HOME="$$2"
+         |    shift 2
+         |  fi
+         |fi
          |case "$$1" in
          |  -i | --interactive )
          |    ${java("mill.MillMain")}
