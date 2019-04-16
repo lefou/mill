@@ -29,7 +29,9 @@ object Artifact {
       ),
       Scope.Compile,
       if (dep.dep.configuration == "") None else Some(dep.dep.configuration),
-      dep.dep.exclusions.toList
+      dep.dep.exclusions.toList,
+      `type` = Option(dep.dep.attributes.`type`).filterNot(_.isEmpty),
+      classifier = Option(dep.dep.attributes.classifier).filterNot(_.isEmpty)
     )
   }
 }
@@ -46,7 +48,9 @@ case class Dependency(
     artifact: Artifact,
     scope: Scope,
     configuration: Option[String] = None,
-    exclusions: Seq[(String, String)] = Nil
+    exclusions: Seq[(String, String)] = Nil,
+    `type`: Option[String] = None,
+    classifier: Option[String] = None
 )
 
 case class Developer(

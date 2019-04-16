@@ -57,6 +57,7 @@ object Dep {
     val attributes = parts.tail.foldLeft(coursier.Attributes()) { (as, s) =>
       s.split('=') match {
         case Array("classifier", v) => as.copy(classifier = v)
+        case Array("type", v) => as.copy(`type` = v)
         case Array(k, v) => throw new Exception(s"Unrecognized attribute: [$s]")
         case _ => throw new Exception(s"Unable to parse attribute specifier: [$s]")
       }

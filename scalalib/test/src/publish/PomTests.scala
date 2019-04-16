@@ -17,7 +17,11 @@ object PomTests extends TestSuite {
       Dependency(Artifact("org.scala-sbt", "test-interface", "1.0"),
                  Scope.Compile),
       Dependency(Artifact("com.lihaoyi", "pprint_2.12", "0.5.3"),
-                 Scope.Compile, exclusions = List("com.lihaoyi" -> "fansi_2.12", "*" -> "sourcecode_2.12"))
+                 Scope.Compile, exclusions = List("com.lihaoyi" -> "fansi_2.12", "*" -> "sourcecode_2.12")),
+      Dependency(Artifact("org.example", "dep-with-type-plugin", "0.1.0"),
+                 Scope.Compile, `type` = Some("maven-plugin")),
+      Dependency(Artifact("org.example", "dep-with-classifier", "1.0.0"),
+                 Scope.Compile, classifier = Some("jdk18"))
     )
     val settings = PomSettings(
       description = "mill-scalalib",
@@ -106,7 +110,7 @@ object PomTests extends TestSuite {
       'dependencies - {
         val dependencies = fullPom \ "dependencies" \ "dependency"
 
-        assert(dependencies.size == 3)
+        assert(dependencies.size == deps.size)
 
         val pomDeps = deps.indexed
 
@@ -120,7 +124,9 @@ object PomTests extends TestSuite {
               (dep \ "exclusions").zipWithIndex.forall { case (node, j) =>
                 singleText(node \ "exclusion" \ "groupId") == pomDeps(index).exclusions(j)._1 &&
                   singleText(node \ "exclusion" \ "artifactId") == pomDeps(index).exclusions(j)._2
-              }
+              },
+              optText(dep \ "type") == pomDeps(index).`type`,
+              optText(dep \ "classifier") == pomDeps(index).classifier
             )
         }
       }

@@ -90,27 +90,28 @@ object Pom {
       case Scope.Test     => <scope>test</scope>
       case Scope.Runtime  => <scope>runtime</scope>
     }
-    if (d.exclusions.isEmpty)
+    val `type` = d.`type`.map(t => <type>{t}</type>).getOrElse(NodeSeq.Empty)
+    val classifier = d.classifier.map(c => <classifier>{c}</classifier>).getOrElse(NodeSeq.Empty)
       <dependency>
         <groupId>{d.artifact.group}</groupId>
         <artifactId>{d.artifact.id}</artifactId>
         <version>{d.artifact.version}</version>
+        {
+          if(d.exclusions.isEmpty)
+            NodeSeq.Empty
+          else
+            <exclusions>
+              {d.exclusions.map(ex =>
+                <exclusion>
+                  <groupId>{ex._1}</groupId>
+                  <artifactId>{ex._2}</artifactId>
+                </exclusion>
+              )}
+            </exclusions>
+        }
         {scope}
-      </dependency>
-    else
-      <dependency>
-        <groupId>{d.artifact.group}</groupId>
-        <artifactId>{d.artifact.id}</artifactId>
-        <version>{d.artifact.version}</version>
-        <exclusions>
-          {d.exclusions.map(ex =>
-            <exclusion>
-              <groupId>{ex._1}</groupId>
-              <artifactId>{ex._2}</artifactId>
-            </exclusion>
-          )}
-        </exclusions>
-        {scope}
+        {`type`}
+        {classifier}
       </dependency>
   }
 
