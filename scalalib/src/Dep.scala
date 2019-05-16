@@ -45,6 +45,8 @@ case class Dep(dep: coursier.Dependency, cross: CrossVersion, force: Boolean) {
       case _ =>
         this
     }
+
+  def optional(optional: Boolean = true): Dep = copy(dep = dep.copy(optional = optional))
 }
 
 object Dep {

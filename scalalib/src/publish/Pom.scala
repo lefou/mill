@@ -90,28 +90,26 @@ object Pom {
       case Scope.Test     => <scope>test</scope>
       case Scope.Runtime  => <scope>runtime</scope>
     }
-    if (d.exclusions.isEmpty)
-      <dependency>
-        <groupId>{d.artifact.group}</groupId>
-        <artifactId>{d.artifact.id}</artifactId>
-        <version>{d.artifact.version}</version>
-        {scope}
-      </dependency>
-    else
-      <dependency>
-        <groupId>{d.artifact.group}</groupId>
-        <artifactId>{d.artifact.id}</artifactId>
-        <version>{d.artifact.version}</version>
-        <exclusions>
-          {d.exclusions.map(ex =>
-            <exclusion>
-              <groupId>{ex._1}</groupId>
-              <artifactId>{ex._2}</artifactId>
-            </exclusion>
-          )}
-        </exclusions>
-        {scope}
-      </dependency>
+    val exclude = if (d.exclusions.nonEmpty) {
+      <exclusions>
+        { d.exclusions.map(ex =>
+          <exclusion>
+            <groupId>{ex._1}</groupId>
+            <artifactId>{ex._2}</artifactId>
+          </exclusion>
+        ) }
+      </exclusions>
+    } else NodeSeq.Empty
+    val optional = if (d.optional) <optional>true</optional> else NodeSeq.Empty
+
+    <dependency>
+      <groupId>{d.artifact.group}</groupId>
+      <artifactId>{d.artifact.id}</artifactId>
+      <version>{d.artifact.version}</version>
+      {exclude}
+      {scope}
+      {optional}
+    </dependency>
   }
 
 }

@@ -16,8 +16,11 @@ object PomTests extends TestSuite {
                  Scope.Compile),
       Dependency(Artifact("org.scala-sbt", "test-interface", "1.0"),
                  Scope.Compile),
-      Dependency(Artifact("com.lihaoyi", "pprint_2.12", "0.5.3"),
-                 Scope.Compile, exclusions = List("com.lihaoyi" -> "fansi_2.12", "*" -> "sourcecode_2.12"))
+      Dependency(
+        Artifact("com.lihaoyi", "pprint_2.12", "0.5.3"),
+        Scope.Compile,
+        exclusions = List("com.lihaoyi" -> "fansi_2.12", "*" -> "sourcecode_2.12")),
+      Dependency(Artifact("org.example", "artifact", "2.0"), Scope.Provided, optional = true)
     )
     val settings = PomSettings(
       description = "mill-scalalib",
@@ -106,7 +109,7 @@ object PomTests extends TestSuite {
       'dependencies - {
         val dependencies = fullPom \ "dependencies" \ "dependency"
 
-        assert(dependencies.size == 3)
+        assert(dependencies.size == 4)
 
         val pomDeps = deps.indexed
 
@@ -116,11 +119,12 @@ object PomTests extends TestSuite {
               singleText(dep \ "groupId") == pomDeps(index).artifact.group,
               singleText(dep \ "artifactId") == pomDeps(index).artifact.id,
               singleText(dep \ "version") == pomDeps(index).artifact.version,
-              optText(dep \ "scope").isEmpty,
+              optText(dep \ "scope").getOrElse("compile") == pomDeps(index).scope.toString().toLowerCase(),
               (dep \ "exclusions").zipWithIndex.forall { case (node, j) =>
                 singleText(node \ "exclusion" \ "groupId") == pomDeps(index).exclusions(j)._1 &&
                   singleText(node \ "exclusion" \ "artifactId") == pomDeps(index).exclusions(j)._2
-              }
+              },
+              (optText(dep \ "optional").getOrElse("false").trim().equalsIgnoreCase("true")) == pomDeps(index).optional
             )
         }
       }

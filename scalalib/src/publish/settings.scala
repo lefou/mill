@@ -46,7 +46,8 @@ case class Dependency(
     artifact: Artifact,
     scope: Scope,
     configuration: Option[String] = None,
-    exclusions: Seq[(String, String)] = Nil
+    exclusions: Seq[(String, String)] = Nil,
+    optional: Boolean = false
 )
 
 case class Developer(
