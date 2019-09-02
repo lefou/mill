@@ -40,6 +40,10 @@ case class Evaluator(home: os.Path,
 
   val classLoaderSignHash = classLoaderSig.hashCode()
 
+  val tickerPrefixTL: ThreadLocal[Option[String]] = new ThreadLocal[Option[String]]() {
+    override def initialValue(): Option[String] = None
+  }
+
   def evaluate(goals: Agg[Task[_]]): Evaluator.Results = {
     os.makeDir.all(outPath)
 
@@ -267,6 +271,8 @@ case class Evaluator(home: os.Path,
 
     val nonEvaluatedTargets = group.indexed.filterNot(results.contains)
 
+    val prevPrefix = tickerPrefixTL.get()
+
     val tickerPrefix = maybeTargetLabel.map { targetLabel =>
       val inputResults = for {
         target <- nonEvaluatedTargets
@@ -275,88 +281,93 @@ case class Evaluator(home: os.Path,
 
       val logRun = inputResults.forall(_.isInstanceOf[Result.Success[_]])
 
-      val prefix = s"[$counterMsg] $targetLabel "
+      val prefix = prevPrefix.getOrElse("") + s"[$counterMsg] $targetLabel"
       if(logRun) log.ticker(prefix)
-      prefix + "| "
+      prefix + " | "
     }
 
-    val multiLogger = new ProxyLogger(resolveLogger(paths.map(_.log))) {
-      override def ticker(s: String): Unit = {
-        super.ticker(tickerPrefix.getOrElse("")+s)
+    tickerPrefixTL.set(tickerPrefix)
+    try {
+      val multiLogger = new ProxyLogger(resolveLogger(paths.map(_.log))) {
+        override def ticker(s: String): Unit = {
+          super.ticker(tickerPrefix.getOrElse("")+s)
+        }
       }
-    }
-    var usedDest = Option.empty[(Task[_], Array[StackTraceElement])]
-    for (task <- nonEvaluatedTargets) {
-      newEvaluated.append(task)
-      val targetInputValues = task.inputs
-        .map{x => newResults.getOrElse(x, results(x))}
-        .collect{ case Result.Success((v, hashCode)) => v }
+      var usedDest = Option.empty[(Task[_], Array[StackTraceElement])]
+      for (task <- nonEvaluatedTargets) {
+        newEvaluated.append(task)
+        val targetInputValues = task.inputs
+          .map{x => newResults.getOrElse(x, results(x))}
+          .collect{ case Result.Success((v, hashCode)) => v }
 
-      val res =
-        if (targetInputValues.length != task.inputs.length) Result.Skipped
-        else {
-          val args = new Ctx(
-            targetInputValues.toArray[Any],
-            () => usedDest match{
-              case Some((earlierTask, earlierStack)) if earlierTask != task =>
-                val inner = new Exception("Earlier usage of `dest`")
-                inner.setStackTrace(earlierStack)
-                throw new Exception(
-                  "`dest` can only be used in one place within each Target[T]",
-                  inner
-                )
-              case _ =>
+        val res =
+          if (targetInputValues.length != task.inputs.length) Result.Skipped
+          else {
+            val args = new Ctx(
+              targetInputValues.toArray[Any],
+              () => usedDest match{
+                case Some((earlierTask, earlierStack)) if earlierTask != task =>
+                  val inner = new Exception("Earlier usage of `dest`")
+                  inner.setStackTrace(earlierStack)
+                  throw new Exception(
+                    "`dest` can only be used in one place within each Target[T]",
+                    inner
+                  )
+                case _ =>
 
 
-                paths match{
-                  case Some(dest) =>
-                    if (usedDest.isEmpty) os.makeDir.all(dest.dest)
-                    usedDest = Some((task, new Exception().getStackTrace))
-                    dest.dest
-                  case None =>
-                    throw new Exception("No `dest` folder available here")
-                }
-            },
-            multiLogger,
-            home,
-            env
-          )
+                  paths match{
+                    case Some(dest) =>
+                      if (usedDest.isEmpty) os.makeDir.all(dest.dest)
+                      usedDest = Some((task, new Exception().getStackTrace))
+                      dest.dest
+                    case None =>
+                      throw new Exception("No `dest` folder available here")
+                  }
+              },
+              multiLogger,
+              home,
+              env
+            )
 
-          val out = System.out
-          val in = System.in
-          val err = System.err
-          try{
-            System.setIn(multiLogger.inStream)
-            System.setErr(multiLogger.errorStream)
-            System.setOut(multiLogger.outputStream)
-            Console.withIn(multiLogger.inStream){
-              Console.withOut(multiLogger.outputStream){
-                Console.withErr(multiLogger.errorStream){
-                  try task.evaluate(args)
-                  catch { case NonFatal(e) =>
-                    Result.Exception(e, new OuterStack(new Exception().getStackTrace))
+            val out = System.out
+            val in = System.in
+            val err = System.err
+            try{
+              System.setIn(multiLogger.inStream)
+              System.setErr(multiLogger.errorStream)
+              System.setOut(multiLogger.outputStream)
+              Console.withIn(multiLogger.inStream){
+                Console.withOut(multiLogger.outputStream){
+                  Console.withErr(multiLogger.errorStream){
+                    try task.evaluate(args)
+                    catch { case NonFatal(e) =>
+                      Result.Exception(e, new OuterStack(new Exception().getStackTrace))
+                    }
                   }
                 }
               }
+            }finally{
+              System.setErr(err)
+              System.setOut(out)
+              System.setIn(in)
             }
-          }finally{
-            System.setErr(err)
-            System.setOut(out)
-            System.setIn(in)
           }
+
+        newResults(task) = for(v <- res) yield {
+          (v,
+            if (task.isInstanceOf[Worker[_]]) inputsHash
+            else v.##
+          )
         }
-
-      newResults(task) = for(v <- res) yield {
-        (v,
-          if (task.isInstanceOf[Worker[_]]) inputsHash
-          else v.##
-        )
       }
+
+      multiLogger.close()
+
+      (newResults, newEvaluated)
+    } finally {
+      tickerPrefixTL.set(prevPrefix)
     }
-
-    multiLogger.close()
-
-    (newResults, newEvaluated)
   }
 
   def resolveLogger(logPath: Option[os.Path]): Logger = logPath match{
