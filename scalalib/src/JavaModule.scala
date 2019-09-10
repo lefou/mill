@@ -568,21 +568,34 @@ trait TestModule extends JavaModule with TaskModule {
     * results to the console
     */
   def test(args: String*) = T.command{
+    val log = T.ctx().log
     val outputPath = T.ctx().dest/"out.json"
+    log.debug(s"Test output path: ${outputPath}")
+
+    val mainClass = "mill.scalalib.TestRunner"
+    log.debug(s"Main class: ${mill.scalalib.TestRunner}")
+    val classPath = zincWorker.scalalibClasspath().map(_.path)
+    log.debug(s"Classpath: ${classPath}")
+    log.debug(s"Test Frameworks: ${testFrameworks()}")
+    log.debug(s"Run classpath:\n\t${runClasspath().mkString(",\n\t")}")
+    log.debug(s"args: ${args}")
+    log.debug(s"output path: ${outputPath.toString()}")
+    log.debug(s"log colored: ${log.colored}")
+    log.debug(s"test classpath: ${compile().classes.path.toString()}")
+    log.debug(s"home (ctx): ${T.ctx().home.toString}")
+    val mainArgs =
+      Seq(testFrameworks().length.toString) ++ testFrameworks() ++
+      Seq(runClasspath().length.toString) ++ runClasspath().map(_.path.toString) ++
+      Seq(args.length.toString) ++ args ++
+      Seq(outputPath.toString, log.colored.toString, compile().classes.path.toString, T.ctx().home.toString)
+    log.debug(s"Running subprocess: ${mainClass}\nwith classpath: ${classPath}\nmainArgs: ${mainArgs}\nworkingDir: ${forkWorkingDir()}")
 
     Jvm.runSubprocess(
-      mainClass = "mill.scalalib.TestRunner",
-      classPath = zincWorker.scalalibClasspath().map(_.path),
+      mainClass = mainClass,
+      classPath = classPath,
       jvmArgs = forkArgs(),
       envArgs = forkEnv(),
-      mainArgs =
-        Seq(testFrameworks().length.toString) ++
-        testFrameworks() ++
-        Seq(runClasspath().length.toString) ++
-        runClasspath().map(_.path.toString) ++
-        Seq(args.length.toString) ++
-        args ++
-        Seq(outputPath.toString, T.ctx().log.colored.toString, compile().classes.path.toString, T.ctx().home.toString),
+      mainArgs = mainArgs,
       workingDir = forkWorkingDir()
     )
 
