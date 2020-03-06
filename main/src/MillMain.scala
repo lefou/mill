@@ -13,6 +13,11 @@ import mill.api.DummyInputStream
 object MillMain {
 
   def main(args: Array[String]): Unit = {
+    val exitCode = main1(args)
+    System.exit(exitCode)
+  }
+
+  def main1(args: Array[String]): Int = {
     // Remove the trailing interactive parameter, we already handled it on call site
     val as = args match {
       case Array(s, _*) if s == "-i" || s == "--interactive" => args.tail
@@ -29,7 +34,7 @@ object MillMain {
       b => (),
       initialSystemProperties = Map()
     )
-    System.exit(if (result) 0 else 1)
+    if(result) 0 else 1
   }
 
   def main0(
