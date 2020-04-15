@@ -6,6 +6,6 @@ set -eux
 git stash -u
 git stash -a
 
-./mill contrib.testng.publishLocal # Needed for CaffeineTests
+./mill -j 0 contrib.testng.publishLocal # Needed for CaffeineTests
 # Run tests
 ./mill integration.test "mill.integration.local.{AcyclicTests,AmmoniteTests,DocAnnotationsTests}"

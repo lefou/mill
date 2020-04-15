@@ -7,7 +7,7 @@ git stash -u
 git stash -a
 
 # First build
-./mill -i all __.publishLocal launcher
+./mill -i -j 0 par __.publishLocal launcher
 cp out/launcher/dest/mill ~/mill-1
 
 # Clean up
@@ -20,7 +20,7 @@ rm -rf ~/.mill
 echo "Build 2" > info.txt && git add info.txt && git commit -m "Add info.txt"
 
 # Second build
-~/mill-1 -i all __.publishLocal launcher
+~/mill-1 -i -j 0 par __.publishLocal launcher
 cp out/launcher/dest/mill ~/mill-2
 
 # Clean up
@@ -30,4 +30,4 @@ git stash -a
 rm -rf ~/.mill
 
 # Use second build to run tests using Mill
-~/mill-2 -i all contrib.{twirllib,playlib,scalapblib,scoverage}.test
+~/mill-2 -i -j 0 par contrib.{twirllib,playlib,scalapblib,scoverage}.test

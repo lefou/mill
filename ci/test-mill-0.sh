@@ -8,4 +8,4 @@ git stash -a
 
 # Run tests
 
-./mill -i all {main,scalalib,scalajslib,scalanativelib,contrib.twirllib,contrib.playlib,main.client,contrib.scalapblib,contrib.flyway,contrib.scoverage}.test
+./mill -i -j 0 par {main,scalalib,scalajslib,scalanativelib,contrib.twirllib,contrib.playlib,main.client,contrib.scalapblib,contrib.flyway,contrib.scoverage}.test

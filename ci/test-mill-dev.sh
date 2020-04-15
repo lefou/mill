@@ -7,11 +7,11 @@ git stash -u
 git stash -a
 
 # Build Mill
-./mill -i dev.assembly
+./mill -i -j 0 dev.assembly
 
 rm -rf ~/.mill
 
 # Second build & run tests
-out/dev/assembly/dest/mill -i main.test.compile
+out/dev/assembly/dest/mill -i -j 0 main.test.compile
 
-out/dev/assembly/dest/mill -i all {main,scalalib,scalajslib,scalanativelib,contrib.twirllib,contrib.scalapblib}.test
+out/dev/assembly/dest/mill -i -j 0 par {main,scalalib,scalajslib,scalanativelib,contrib.twirllib,contrib.scalapblib}.test

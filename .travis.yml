@@ -7,6 +7,10 @@ before_install:
 git:
   depth: false
 
+env:
+  global:
+    - MILL_VERSION=0.6.1-120-8d6b23
+
 jobs:
   include:
   - stage: build
@@ -15,6 +19,9 @@ jobs:
   - stage: build
     env: CI_SCRIPT=ci/test-mill-release.sh
     jdk: openjdk9
+  - stage: build
+    env: CI_SCRIPT=ci/test-mill-release.sh
+    jdk: openjdk11
 
   - stage: build
     env: CI_SCRIPT=ci/test-mill-dev.sh
