@@ -1,13 +1,18 @@
 package mill.main.client.universal;
 
 import static de.tobiasroeser.lambdatest.Expect.expectEquals;
+import static de.tobiasroeser.lambdatest.Expect.expectFalse;
 
+import java.util.Arrays;
+
+import de.tobiasroeser.lambdatest.generic.DefaultReporter;
 import de.tobiasroeser.lambdatest.junit.FreeSpec;
 import de.tototec.cmdoption.CmdlineParser;
 import de.tototec.cmdoption.CmdlineParserException;
 
 public class MillUniversalClientTests extends FreeSpec {
     public MillUniversalClientTests() {
+        setReporter(new DefaultReporter());
 
         section("Cmdline parser", () -> {
 
@@ -40,6 +45,15 @@ public class MillUniversalClientTests extends FreeSpec {
                 expectEquals(cmdline.sysProps.get("KEY1"), "10");
                 expectEquals(cmdline.sysProps.get("KEY2"), "20");
 
+            });
+
+            test("A option after the first parameter is also a parameter", () -> {
+                final Cmdline cmdline = new Cmdline();
+                final CmdlineParser cp = MillUniversalClient.createParser(cmdline);
+                expectFalse(cmdline.debug);
+                cp.parse("version", "-d");
+                expectFalse(cmdline.debug);
+                expectEquals(cmdline.params, Arrays.asList("version", "-d"));
             });
 
         });

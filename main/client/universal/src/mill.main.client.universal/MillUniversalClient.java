@@ -22,6 +22,7 @@ class MillUniversalClient {
         cp.setProgramName("mill");
         cp.setAboutLine("Mill build tool, version " + Versions.millVersion());
         cp.setAggregateShortOptionsWithPrefix("-");
+        cp.setStopAcceptOptionsAfterParameterIsSet(true);
         return cp;
     }
 
@@ -77,14 +78,14 @@ class MillUniversalClient {
     }
 
     // avoid dependencies loading before we need them
-    private static CheckedFunction<String[], Integer> lightweightClientRunner = args -> {
+    private static final CheckedFunction<String[], Integer> lightweightClientRunner = args -> {
         int exitCode = mill.main.client.MillClientMain.main0(args);
         if (exitCode == mill.main.client.MillClientMain.ExitServerCodeWhenVersionMismatch()) {
             exitCode = mill.main.client.MillClientMain.main0(args);
         }
         return exitCode;
     };
-    private static CheckedFunction<String[], Integer> inProcessRunner = args -> {
+    private static final CheckedFunction<String[], Integer> inProcessRunner = args -> {
         return mill.MillMain.main1(args);
     };
 
