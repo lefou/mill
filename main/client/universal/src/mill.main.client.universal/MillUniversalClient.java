@@ -1,6 +1,7 @@
 package mill.main.client.universal;
 
 import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.Locale;
 
 import de.tototec.cmdoption.CmdlineParser;
@@ -62,15 +63,24 @@ class MillUniversalClient {
             return 0;
         }
 
-        if (cmdline.interactive) {
+        if (cmdline.interactive || isWindows()) {
             // We need to run in interative mode,
             // so no client server mode
+            // TODO: strip the first "-i" from the args
+            String[] stripped = args;
+            if(args.length >= 1 && (args[0] == "-i" || args[0] == "--interactive")) {
+                stripped = Arrays.copyOfRange(args, 1, args.length);
+            }
             return inProcessRunner.apply(args);
 
         } else {
             return lightweightClientRunner.apply(args);
         }
 
+    }
+
+    public static final boolean isWindows() {
+        return System.getProperty("os.name").startsWith("Windows");
     }
 
     public static interface CheckedFunction<T, R> {
