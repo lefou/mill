@@ -60,13 +60,18 @@ trait PublishModule extends JavaModule { outer =>
   /**
     * Publish artifacts to a local ivy repository.
     * @param localIvyRepo The local ivy repository.
-    *                     If not defines, defaults to `$HOME/.ivy2/local`
+    *                     If not defined, defaults to the value of system property `ivy.home` or (if unset) `$HOME/.ivy2/local`
     */
   def publishLocal(localIvyRepo: String = null): define.Command[Unit] = T.command {
-    val publisher = localIvyRepo match {
-      case null => LocalIvyPublisher
-      case repo => new LocalIvyPublisher(os.Path(repo))
-    }
+    val publisher = new LocalIvyPublisher(
+      localIvyRepo = localIvyRepo match {
+        case null => LocalIvyPublisher.defaultIvyRepoPath
+        case repo =>
+          val file = new java.io.File(repo)
+          if (file.isAbsolute) os.Path(repo)
+          else os.Path(file.getAbsoluteFile())
+      }
+    )
 
     publisher.publish(
       jar = jar().path,

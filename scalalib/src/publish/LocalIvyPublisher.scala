@@ -1,5 +1,7 @@
 package mill.scalalib.publish
 
+import java.io.File
+
 import mill.api.Ctx
 
 class LocalIvyPublisher(localIvyRepo: os.Path) {
@@ -37,4 +39,15 @@ class LocalIvyPublisher(localIvyRepo: os.Path) {
 
 }
 
-object LocalIvyPublisher extends LocalIvyPublisher(os.home / ".ivy2" / "local")
+object LocalIvyPublisher {
+  /**
+   * The path to the local ivy repository.
+   * Respects the system property `ivy.home` if defined.
+   */
+  def defaultIvyRepoPath: os.Path = {
+    val file = new File(sys.props.getOrElse("ivy.home", sys.props("user.home") + "/.ivy2/local"))
+    if(file.isAbsolute()) os.Path(file)
+    else os.Path(file.getAbsoluteFile())
+
+  }
+}
