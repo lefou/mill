@@ -8,6 +8,10 @@ git:
   depth: false
 
 jobs:
+  allow_failures:
+    - if: jdk = openjdk9 
+      env: CI_SCRIPT=ci/test-mill-release.sh
+
   include:
   - stage: build
     env: CI_SCRIPT=ci/test-mill-release.sh
