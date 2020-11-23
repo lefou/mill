@@ -1,7 +1,6 @@
 package mill.define
 
 import scala.annotation.{StaticAnnotation, compileTimeOnly}
-import scala.language.higherKinds
 import scala.reflect.macros.blackbox.Context
 
 /**

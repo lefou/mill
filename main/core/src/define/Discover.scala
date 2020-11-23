@@ -57,21 +57,22 @@ object Discover {
       }
     }
     val router = new mill.util.Router(c)
-    val mapping = for{
+    val mapping = for {
       discoveredModuleType <- seen
-      val curCls = discoveredModuleType.asInstanceOf[router.c.Type]
-      val methods = router.getValsOrMeths(curCls)
-      val overridesRoutes = {
+      curCls = discoveredModuleType.asInstanceOf[router.c.Type]
+      methods = router.getValsOrMeths(curCls)
+      overridesRoutes = {
         assertParamListCounts(
           methods,
           (weakTypeOf[mill.define.Sources], 0, "`T.sources`"),
+          (weakTypeOf[mill.define.Source], 0, "`T.source`"),
           (weakTypeOf[mill.define.Input[_]], 0, "`T.input`"),
           (weakTypeOf[mill.define.Persistent[_]], 0, "`T.persistent`"),
           (weakTypeOf[mill.define.Target[_]], 0, "`T{...}`"),
           (weakTypeOf[mill.define.Command[_]], 1, "`T.command`")
         )
 
-        for{
+        for {
           m <- methods.toList
           if m.returnType <:< weakTypeOf[mill.define.Command[_]].asInstanceOf[router.c.Type]
         } yield (m.overrides.length, router.extractMethod(m, curCls).asInstanceOf[c.Tree])

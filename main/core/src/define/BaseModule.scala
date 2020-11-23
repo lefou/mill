@@ -41,7 +41,7 @@ abstract class BaseModule(millSourcePath0: os.Path,
 abstract class ExternalModule(implicit millModuleEnclosing0: sourcecode.Enclosing,
                               millModuleLine0: sourcecode.Line,
                               millName0: sourcecode.Name)
-  extends BaseModule(ammonite.ops.pwd, external0 = true, foreign0 = None)(
+  extends BaseModule(os.pwd, external0 = true, foreign0 = None)(
     implicitly, implicitly, implicitly, implicitly, Caller(())
   ){
 
