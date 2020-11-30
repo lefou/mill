@@ -2,8 +2,6 @@ name: ci-push-validation
 
 on:
   push:
-    branches:
-      - master
   pull_request:
     branches:
       - master
@@ -12,7 +10,7 @@ jobs:
   test:
     strategy:
       matrix:
-        java-version: [8, 11]
+        java-version: [8, 11, 14]
         buildcmd:
           - ci/test-mill-release.sh
           - ci/test-mill-dev.sh
