@@ -16,9 +16,17 @@ jobs:
           - ci/test-mill-dev.sh
           - ci/test-mill-bootstrap-0.sh
           - ci/test-mill-bootstrap-1.sh
-          - ci/test-mill-0.sh
-          - ci/test-mill-1.sh
-          - ci/test-mill-2.sh
+          # - ci/test-mill-0.sh
+          - ./mill -i all "{main.__,scalalib,scalajslib,scalanativelib,bsp}.test"
+          - ./mill -i all "{contrib.buildinfo,contrib.codeartifact,contrib.flyway,contrib.playlib,contrib.scalapblib,contrib.scoverage,contrib.twirllib,contrib.versionfile}.test"
+          # - ci/test-mill-1.sh
+          - ./mill integration.test "mill.integration.local.JawnTests"
+          - ./mill integration.test "mill.integration.local.BetterFilesTests"
+          - ./mill integration.test "mill.integration.local.UpickleTests"
+          #- ci/test-mill-2.sh
+          - ./mill integration.test "mill.integration.local.AcyclicTests"
+          - ./mill integration.test "mill.integration.local.AmmoniteTests"
+          - ./mill integration.test "mill.integration.local.DocAnnotationsTests"
           - ./mill -i docs.generate
         exclude:
           - java-version: 11
