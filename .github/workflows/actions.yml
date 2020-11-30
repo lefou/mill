@@ -37,6 +37,8 @@ jobs:
             buildcmd: ./mill integration.test "mill.integration.local.BetterFilesTests"
           - java-version: 14
             buildcmd: ./mill integration.test "mill.integration.local.BetterFilesTests"
+          - java-version: 14
+            buildcmd: ./mill integration.test "mill.integration.local.UpickleTests"
           - java-version: 11
             buildcmd: ci/test-mill-release.sh
 
