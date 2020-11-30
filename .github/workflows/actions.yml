@@ -30,11 +30,15 @@ jobs:
           - ./mill -i docs.generate
         exclude:
           - java-version: 11
-            buildcmd: ci/test-mill-1.sh
+            buildcmd: ./mill integration.test "mill.integration.local.JawnTests"
+          - java-version: 14
+            buildcmd: ./mill integration.test "mill.integration.local.JawnTests"
+          - java-version: 11
+            buildcmd: ./mill integration.test "mill.integration.local.BetterFilesTests"
+          - java-version: 14
+            buildcmd: ./mill integration.test "mill.integration.local.BetterFilesTests"
           - java-version: 11
             buildcmd: ci/test-mill-release.sh
-          - java-version: 14
-            buildcmd: ci/test-mill-1.sh
 
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.java-version == 14 }}
