@@ -130,9 +130,13 @@ object MillMain {
           )
           (true, None)
         } else {
+          val buildScript = os.pwd / "build.sc"
           val useRepl = config.repl.value || (config.interactive.value && config.leftoverArgs.value.isEmpty)
-          val (success, nextStateCache) =
-            if (config.repl.value && config.leftoverArgs.value.nonEmpty ) {
+          val (success, nextStateCache) = {
+            if(!buildScript.toIO.exists() && !useRepl) {
+              stderr.println("build.sc: file not found")
+              (false, stateCache)
+            } else if (config.repl.value && config.leftoverArgs.value.nonEmpty ) {
               stderr.println("No target may be provided with the --repl flag")
               (false, stateCache)
             } else if ( config.leftoverArgs.value.isEmpty && config.noServer.value) {
@@ -212,9 +216,10 @@ object MillMain {
                 runner.printInfo("Loading...")
                 (runner.watchLoop(isRepl = true, printing = false, _.run()), runner.stateCache)
               } else {
-                (runner.runScript(os.pwd / "build.sc", config.leftoverArgs.value.toList), runner.stateCache)
+                (runner.runScript(buildScript, config.leftoverArgs.value.toList), runner.stateCache)
               }
             }
+          }
           if (config.ringBell.value){
             if (success) println("\u0007")
             else {
