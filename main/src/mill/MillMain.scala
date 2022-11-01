@@ -118,6 +118,11 @@ object MillMain {
         )
         (false, None)
       case Right(config) =>
+        PathRef._pathContexts = Seq(
+          "out" -> os.pwd / "out",
+          "workspace" -> os.pwd
+        )
+
         val useRepl =
           config.repl.value || (config.interactive.value && config.leftoverArgs.value.isEmpty)
 

@@ -1,9 +1,10 @@
 package mill.api
 
+import os.{Path, SubPath}
+
 import java.nio.{file => jnio}
 import java.security.{DigestOutputStream, MessageDigest}
-import scala.util.Using
-
+import scala.util.{Try, Using}
 import upickle.default.{ReadWriter => RW}
 
 /**
@@ -17,6 +18,18 @@ case class PathRef(path: os.Path, quick: Boolean, sig: Int) {
 
 object PathRef {
 
+//  private[mill] def pathContexts: Seq[(String, os.Path)] = _pathContexts
+
+  private[mill] var _pathContexts: Seq[(String, os.Path)] = Seq()
+
+  private def pathContext(path: os.Path): Option[(String, os.Path, os.SubPath)] = {
+    _pathContexts.to(LazyList).map {
+      case (ctx, ctxPath) => Try {
+          (ctx, ctxPath, path.subRelativeTo(ctxPath))
+        }.toOption
+    }.find(_.isDefined).flatten
+  }
+
   /**
    * Create a [[PathRef]] by recursively digesting the content of a given `path`.
    * @param path The digested path.
@@ -25,6 +38,8 @@ object PathRef {
    * @return
    */
   def apply(path: os.Path, quick: Boolean = false): PathRef = {
+    val optCtx = pathContext(path)
+
     val sig = {
       val isPosix = path.wrapped.getFileSystem.supportedFileAttributeViews().contains("posix")
       val digest = MessageDigest.getInstance("MD5")
@@ -40,7 +55,13 @@ object PathRef {
           (path, attrs) <-
             os.walk.attrs(path, includeTarget = true, followLinks = true).sortBy(_._1.toString)
         ) {
-          digest.update(path.toString.getBytes)
+          optCtx match {
+            case Some((ctx, base, subPath)) =>
+              digest.update(ctx.getBytes())
+              digest.update(subPath.toString().getBytes())
+            case None =>
+              digest.update(path.toString.getBytes())
+          }
           if (!attrs.isDir) {
             if (isPosix) {
               updateWithInt(os.perms(path, followLinks = false).value)
@@ -80,22 +101,49 @@ object PathRef {
    */
   implicit def jsonFormatter: RW[PathRef] = upickle.default.readwriter[String].bimap[PathRef](
     p => {
-      (if (p.quick) "qref" else "ref") + ":" +
+      val ctxPath = pathContext(p.path)
+
+      val ctxSuffix = if (ctxPath.isDefined) "c" else ""
+      val quickPrefix = if (p.quick) "q" else ""
+
+      val prefix = (p.quick, ctxPath.isDefined) match {
+        case (true, false) => "qref"
+        case (true, true) => "cqref"
+        case (false, false) => "ref"
+        case (false, true) => "cref"
+      }
+      val suffix = ctxPath match {
+        case Some((ctx, base, subPath)) =>
+          s"${ctx}:${subPath.toString()}"
+        case None => p.path.toString()
+      }
+
+      prefix + ":" +
         String.format("%08x", p.sig: Integer) + ":" +
-        p.path.toString()
+        suffix
     },
     s => {
       val Array(prefix, hex, path) = s.split(":", 3)
-      PathRef(
-        os.Path(path),
-        prefix match {
-          case "qref" => true
-          case "ref" => false
-        },
-        // Parsing to a long and casting to an int is the only way to make
-        // round-trip handling of negative numbers work =(
-        java.lang.Long.parseLong(hex, 16).toInt
-      )
+
+      val (quick, withCtx) = prefix match {
+        case "qref" => (true, false)
+        case "cqref" => (true, true)
+        case "ref" => (false, false)
+        case "cref" => (false, true)
+      }
+      // Parsing to a long and casting to an int is the only way to make
+      // round-trip handling of negative numbers work =(
+      val sig = java.lang.Long.parseLong(hex, 16).toInt
+
+      val fullPath = if (withCtx) {
+        val Array(ctx, subPath) = path.split(":", 2)
+        val base = _pathContexts.find(_._1 == ctx).get._2
+        base / os.SubPath(subPath)
+      } else {
+        os.Path(path)
+      }
+
+      PathRef(fullPath, quick, sig)
     }
   )
 }
