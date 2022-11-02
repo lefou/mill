@@ -24,9 +24,17 @@ object PathRef {
   private def pathContext(path: os.Path): Option[(String, os.Path, os.SubPath)] = {
     pathRefContext.value.to(LazyList).map {
       case (ctx, ctxPath) => Try {
-        (ctx, ctxPath, path.subRelativeTo(ctxPath))
-      }
+          (ctx, ctxPath, path.subRelativeTo(ctxPath))
+        }
     }.find(_.isSuccess).map(_.get)
+  }
+
+  private val quickEnabled = {
+    val prop = sys.props.get("mill.api.PathRef.quick").getOrElse("true")
+    Try(prop.toBoolean)
+      .getOrElse(throw new IllegalArgumentException(
+        s"""System property "mill.api.PathRef.quick" value "${prop}" cannot be parsed as Boolean."""
+      ))
   }
 
   /**
@@ -39,6 +47,7 @@ object PathRef {
    */
   def apply(path: os.Path, quick: Boolean = false): PathRef = {
     val basePath = path
+    val useQuick = quick && quickEnabled
 
     val sig = {
       val isPosix = path.wrapped.getFileSystem.supportedFileAttributeViews().contains("posix")
@@ -63,7 +72,7 @@ object PathRef {
             if (isPosix) {
               updateWithInt(os.perms(path, followLinks = false).value)
             }
-            if (quick) {
+            if (useQuick) {
               val value = (attrs.mtime, attrs.size).hashCode()
               updateWithInt(value)
             } else if (jnio.Files.isReadable(path.toNIO)) {
@@ -90,7 +99,7 @@ object PathRef {
       java.util.Arrays.hashCode(digest.digest())
     }
 
-    new PathRef(path, quick, sig)
+    new PathRef(path, useQuick, sig)
   }
 
   /**
@@ -129,7 +138,9 @@ object PathRef {
         case Array(path) => os.Path(path)
         case Array("root", path) => os.Path(path)
         case Array(ctx, path) =>
-          val base = pathRefContext.value.find(_._1 == ctx).getOrElse(sys.error(s"Unsupported PathRef context '${ctx}' found"))._2
+          val base = pathRefContext.value.find(_._1 == ctx).getOrElse(
+            sys.error(s"Unsupported PathRef context '${ctx}' found")
+          )._2
           base / os.SubPath(path)
       }
 
