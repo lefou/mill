@@ -26,10 +26,10 @@ jobs:
         run: rm -r $HOME/.cache/coursier
 
       - name: "1. Run Mill with settings that should stress coursier"
-        run: target/mill-release -i -j 20 __.prepareOffline
+        run: target/mill-release -i -j 20 -d __.prepareOffline
 
       - name: "2. Cleanup courier cache"
         run: rm -r $HOME/.cache/coursier
 
       - name: "2. Run Mill with settings that should stress coursier"
-        run: target/mill-release -i -j 20 __.prepareOffline
+        run: target/mill-release -i -j 20 -d __.prepareOffline
