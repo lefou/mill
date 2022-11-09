@@ -22,8 +22,14 @@ jobs:
       - name: "Install local Mill into target and ivy cache"
         run: ./mill -i installLocal
 
-      - name: "Cleanup courier cache"
+      - name: "1. Cleanup courier cache"
         run: rm -r $HOME/.cache/coursier
 
-      - name: "Run Mill with settings that should stress coursier"
-        run: target/mill-release -i -j 20 __.preparedOffline
+      - name: "1. Run Mill with settings that should stress coursier"
+        run: target/mill-release -i -j 20 __.prepareOffline
+
+      - name: "2. Cleanup courier cache"
+        run: rm -r $HOME/.cache/coursier
+
+      - name: "2. Run Mill with settings that should stress coursier"
+        run: target/mill-release -i -j 20 __.prepareOffline
