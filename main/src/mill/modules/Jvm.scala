@@ -12,7 +12,7 @@ import java.io.{
 }
 import java.lang.reflect.Modifier
 import java.net.URI
-import java.nio.file.{FileSystems, Files, StandardOpenOption}
+import java.nio.file.{FileSystems, Files, NoSuchFileException, StandardOpenOption}
 import java.nio.file.attribute.PosixFilePermission
 import java.util.jar.{Attributes, JarEntry, JarFile, JarOutputStream, Manifest}
 import coursier.{Dependency, Repository, Resolution}
@@ -27,7 +27,7 @@ import mill.modules.Assembly.{AppendEntry, WriteOnceEntry}
 import scala.collection.mutable
 import scala.util.Properties.isWin
 import scala.jdk.CollectionConverters._
-import scala.util.Using
+import scala.util.{Failure, Success, Try, Using}
 import mill.BuildInfo
 import os.SubProcess
 import upickle.default.{ReadWriter => RW}
@@ -531,6 +531,44 @@ object Jvm {
     PathRef(outputPath)
   }
 
+  //    scalanativelib.worker[0.4,2.12.15].scalaDocClasspath java.nio.file.NoSuchFileException:
+  //    /home/runner/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/.scala-xml_2.12-1.0.6.jar__sha1.computed16603970077619895318.tmp -> /home/runner/.cache/coursier/v1/https/repo1.maven.org/maven2/org/scala-lang/modules/scala-xml_2.12/1.0.6/.scala-xml_2.12-1.0.6.jar__sha1.computed
+
+  // Workaround for https://github.com/com-lihaoyi/mill/issues/1028
+  @tailrec
+  private def retry[T](
+      retryCount: Int = CoursierRetryCount,
+      ctx: Option[Ctx.Log],
+      errorMsgExtractor: T => Seq[String]
+  )(f: () => T): T = {
+    val tried = Try(f())
+    tried match {
+      case Failure(e: NoSuchFileException)
+          if retryCount > 0 && e.getMessage.contains("__sha1.computed") =>
+        ctx.foreach(_.log.debug(
+          s"Detected a concurrent download issue in coursier. Attempting a retry (${retryCount} left)"
+        ))
+        Thread.sleep(CoursierRetryWait)
+        retry(retryCount - 1, ctx, errorMsgExtractor)(f)
+      case Success(res) if retryCount > 0 =>
+        val errors = errorMsgExtractor(res)
+        if (errors.exists(e => e.contains("concurrent download"))) {
+          ctx.foreach(_.log.debug(
+            s"Detected a concurrent download issue in coursier. Attempting a retry (${retryCount} left)"
+          ))
+          Thread.sleep(CoursierRetryWait)
+          retry(retryCount - 1, ctx, errorMsgExtractor)(f)
+        } else if (errors.exists(e => e.contains("checksum not found"))) {
+          ctx.foreach(_.log.debug(
+            s"Detected a checksum download issue in coursier. Attempting a retry (${retryCount} left)"
+          ))
+          Thread.sleep(CoursierRetryWait)
+          retry(retryCount - 1, ctx, errorMsgExtractor)(f)
+        } else res
+      case r => r.get
+    }
+  }
+
   /**
    * Resolve dependencies using Coursier.
    *
@@ -581,10 +619,7 @@ object Jvm {
         identity[coursier.cache.FileCache[Task]](_)
       ).apply(coursierCache0)
 
-      @tailrec def load(
-          artifacts: Seq[coursier.util.Artifact],
-          retry: Int = CoursierRetryCount
-      ): (Seq[ArtifactError], Seq[File]) = {
+      def load(artifacts: Seq[coursier.util.Artifact]): (Seq[ArtifactError], Seq[File]) = {
         import scala.concurrent.ExecutionContext.Implicits.global
         val loadedArtifacts = Gather[Task].gather(
           for (a <- artifacts)
@@ -597,20 +632,7 @@ object Jvm {
         }
         val successes = loadedArtifacts.collect { case (_, Right(x)) => x }
 
-        if (retry > 0 && errors.exists(e => e.describe.contains("concurrent download"))) {
-          ctx.foreach(_.log.debug(
-            s"Detected a concurrent download issue in coursier. Attempting a retry (${retry} left)"
-          ))
-          Thread.sleep(CoursierRetryWait)
-          load(artifacts, retry - 1)
-        } else if (retry > 0 && errors.exists(e => e.describe.contains("checksum not found"))) {
-          ctx.foreach(_.log.debug(
-            s"Detected a checksum download issue in coursier. Attempting a retry (${retry} left)"
-          ))
-          Thread.sleep(CoursierRetryWait)
-          load(artifacts, retry - 1)
-
-        } else (errors, successes)
+        (errors, successes)
       }
 
       val sourceOrJar =
@@ -629,7 +651,14 @@ object Jvm {
             coursier.Type("maven-plugin")
           )
         )
-      val (errors, successes) = load(sourceOrJar)
+
+      val (errors, successes) = retry(
+        ctx = ctx,
+        errorMsgExtractor = (res: (Seq[ArtifactError], Seq[File])) => res._1.map(_.describe)
+      ) {
+        () => load(sourceOrJar)
+      }
+
       if (errors.isEmpty) {
         mill.Agg.from(
           successes.map(p => PathRef(os.Path(p), quick = true)).filter(_.path.ext == "jar")
@@ -689,23 +718,11 @@ object Jvm {
 
     import scala.concurrent.ExecutionContext.Implicits.global
 
-    // Workaround for https://github.com/com-lihaoyi/mill/issues/1028
-    @tailrec def retriedResolution(count: Int = CoursierRetryCount): Resolution = {
-      val resolution = start.process.run(fetch).unsafeRun()
-      if (
-        count > 0 &&
-        resolution.errors.nonEmpty &&
-        resolution.errors.exists(_._2.exists(_.contains("concurrent download")))
-      ) {
-        ctx.foreach(_.log.debug(
-          s"Detected a concurrent download issue in coursier. Attempting a retry (${count} left)"
-        ))
-        Thread.sleep(CoursierRetryWait)
-        retriedResolution(count - 1)
-      } else resolution
-    }
+    val resolution =
+      retry(ctx = ctx, errorMsgExtractor = (r: Resolution) => r.errors.flatMap(_._2)) {
+        () => start.process.run(fetch).unsafeRun()
+      }
 
-    val resolution = retriedResolution()
     (deps.iterator.to(Seq), resolution)
   }
 
