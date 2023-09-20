@@ -1889,16 +1889,12 @@ private def resolveTasks[T](taskNames: String*): Seq[NamedTask[T]] = {
   ).map(x => x.asInstanceOf[Seq[mill.define.NamedTask[T]]]).getOrElse(???)
 }
 
-def validate(): Command[Unit] = {
-  val tasks = resolveTasks("__.compile", "__.minaReportBinaryIssues")
-  val sources = resolveTasks("__.sources")
-
-  T.command {
-    T.sequence(tasks)()
-    mill.scalalib.scalafmt.ScalafmtModule.checkFormatAll(Tasks(sources))()
-    docs.localPages()
-    ()
-  }
+def validate(): Command[Unit] = T.command {
+  T.sequence(resolveTasks("__.compile"))()
+  T.sequence(resolveTasks("__.mimaReportBinaryIssues"))()
+  mill.scalalib.scalafmt.ScalafmtModule.checkFormatAll(Tasks(resolveTasks("__.sources")))()
+  docs.localPages()
+  ()
 }
 
 val dummyDeps: Seq[Dep] = Seq(
