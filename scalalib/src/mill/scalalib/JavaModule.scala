@@ -18,6 +18,8 @@ import mill.scalalib.publish.Artifact
 import mill.util.Jvm
 import os.{Path, ProcessOutput}
 
+import scala.util.control.NonFatal
+
 /**
  * Core configuration required to compile a single Java compilation target
  */
@@ -822,8 +824,8 @@ trait JavaModule
         )
       )
     catch {
-      case e: Exception =>
-        Result.Failure("subprocess failed")
+      case NonFatal(e) =>
+        Result.Failure("Subprocess failed. " + e.getMessage())
     }
   }
 
