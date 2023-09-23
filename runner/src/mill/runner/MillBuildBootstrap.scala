@@ -223,7 +223,7 @@ class MillBuildBootstrap(
       rootModule,
       evaluator,
       Seq("{runClasspath,scriptImportGraph,methodCodeHashSignatures}"),
-      onlyDeps
+      onlyDeps = false
     ) match {
       case (Left(error), evalWatches, moduleWatches) =>
         val evalState = RunnerState.Frame(
