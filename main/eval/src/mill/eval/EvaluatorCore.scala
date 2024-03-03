@@ -83,58 +83,68 @@ private[mill] trait EvaluatorCore extends GroupEvaluator {
   ): Evaluator.Results = {
     implicit val implicitEc = ec
 
-    def plan(goals: Agg[Task[_]]): (MultiBiMap[Terminal, Task[_]], Strict.Agg[Task[_]]) = {
-      val plan = Plan.plan(goals)
-      println("goals:")
-      pprint.pprintln(goals)
-      if (!onlyDeps) plan
-      else {
+//    def plan(goals: Agg[Task[_]]): (MultiBiMap[Terminal, Task[_]], Strict.Agg[Task[_]]) = {
+//      val plan = Plan.plan(goals)
+//      println("goals:")
+//      pprint.pprintln(goals)
+//      if (!onlyDeps) plan
+//      else {
+//
+//        val (sortedGroups0, transitive0) = plan
+//        // we need to remove the source goals
+//        val sortedGroups = new MultiBiMap.Mutable[Terminal, Task[_]]()
+//        val (groupsIn, groupsOut) = sortedGroups0.items().toSeq.partition {
+//          case (Terminal.Task(t), _) => !goals.contains(t)
+//          case (Terminal.Labelled(t, _), _) => !goals.contains(t)
+//          case _ => true
+//        }
+//        groupsIn.foreach {
+//          case (k, vs) => sortedGroups.addAll(k, vs)
+//        }
+////        println("sortedGroups")
+////        pprint.pprintln(sortedGroups.items().toSeq)
+//        println(s"removed groups: ${groupsOut.size}")
+//        pprint.pprintln(groupsOut)
+//
+//        val (transitive, removedTransitive) = transitive0.toSeq.partition(t => !goals.contains(t))
+//        println(s"removed transitive: ${removedTransitive.size}")
+//        pprint.pprintln(removedTransitive)
+//
+//        // and ensure they are not transitively needed
+//        val conflictDep = transitive.toSeq.collectFirst {
+//          case t if t.inputs.exists(i => goals.contains(i)) =>
+//            goals.find(g => t.inputs.contains(g)).head
+//        }
+//        if (conflictDep.nonEmpty) {
+//          val selfTerminals =
+//            conflictDep.map(dep => sortedGroups0.lookupValue(dep)).map(_.render)
+//          // one of the requested goals depends one another requested goal,
+//          // hence --onlydeps isn't possible
+//          throw new MillException(
+//            s"Cannot limit evaluation to the dependencies of the given targets (--onlydeps). At least one requested target is also a dependency of the others: ${selfTerminals.head}"
+//          )
+//        }
+//
+//        (sortedGroups, transitive)
+//      }
+//    }
 
-        val (sortedGroups0, transitive0) = plan
-        // we need to remove the source goals
-        val sortedGroups = new MultiBiMap.Mutable[Terminal, Task[_]]()
-        val (groupsIn, groupsOut) = sortedGroups0.items().toSeq.partition {
-          case (Terminal.Task(t), _) => !goals.contains(t)
-          case (Terminal.Labelled(t, _), _) => !goals.contains(t)
-          case _ => true
-        }
-        groupsIn.foreach {
-          case (k, vs) => sortedGroups.addAll(k, vs)
-        }
-//        println("sortedGroups")
-//        pprint.pprintln(sortedGroups.items().toSeq)
-        println(s"removed groups: ${groupsOut.size}")
-        pprint.pprintln(groupsOut)
-
-        val (transitive, removedTransitive) = transitive0.toSeq.partition(t => !goals.contains(t))
-        println(s"removed transitive: ${removedTransitive.size}")
-        pprint.pprintln(removedTransitive)
-
-        // and ensure they are not transitively needed
-        val conflictDep = transitive.toSeq.collectFirst {
-          case t if t.inputs.exists(i => goals.contains(i)) =>
-            goals.find(g => t.inputs.contains(g)).head
-        }
-        if (conflictDep.nonEmpty) {
-          val selfTerminals =
-            conflictDep.map(dep => sortedGroups0.lookupValue(dep)).map(_.render)
-          // one of the requested goals depends one another requested goal,
-          // hence --onlydeps isn't possible
-          throw new MillException(
-            s"Cannot limit evaluation to the dependencies of the given targets (--onlydeps). At least one requested target is also a dependency of the others: ${selfTerminals.head}"
-          )
-        }
-
-        (sortedGroups, transitive)
-      }
-    }
+    // How to handle onlyDeps?
+    // Simple idea: just execute all targets as usual but skip the requested targets (goals)
+    // If there are more than one goal, it can happen that they depend on each other
+    // How to handle that?
+    // 1. Error out
+    // 2. run those who are needed for the others
+    // 3. just skip everthing that depends on a goal
+    val onlyDepsGoals = if (onlyDeps) goals else Agg.empty[Task[_]]
 
     os.makeDir.all(outPath)
     val chromeProfileLogger = new ChromeProfileLogger(outPath / "mill-chrome-profile.json")
     val profileLogger = new ProfileLogger(outPath / "mill-profile.json")
     val threadNumberer = new ThreadNumberer()
-    val (sortedGroups, transitive) = plan(goals)
-    val interGroupDeps = findInterGroupDeps(sortedGroups)
+    val (sortedGroups, transitive) = Plan.plan(goals)
+
+    val interGroupDeps: Map[Terminal, Seq[Terminal]] = findInterGroupDeps(sortedGroups)
     val terminals = sortedGroups.keys().toVector
     val failed = new AtomicBoolean(false)
     val count = new AtomicInteger(1)
@@ -147,6 +157,13 @@ private[mill] trait EvaluatorCore extends GroupEvaluator {
     // necessary upstream futures will have already been scheduled and stored,
     // due to the topological order of traversal.
     for (terminal <- terminals) {
+      val onlyDepsSkip = onlyDepsGoals.contains(
+        terminal match {
+          case Terminal.Labelled(t, _) => t
+          case Terminal.Task(t) => t
+        }
+      )
+
       val deps = interGroupDeps(terminal)
       futures(terminal) = Future.sequence(deps.map(futures)).map { upstreamValues =>
         if (failed.get()) None
@@ -165,18 +182,33 @@ private[mill] trait EvaluatorCore extends GroupEvaluator {
             tickerContext = GroupEvaluator.dynamicTickerPrefix.value
           )
 
-          val res = evaluateGroupCached(
-            terminal = terminal,
-            group = sortedGroups.lookupKey(terminal),
-            results = upstreamResults,
-            counterMsg = counterMsg,
-            zincProblemReporter = reporter,
-            testReporter = testReporter,
-            logger = contextLogger
-          )
+          val res = if (onlyDepsSkip) {
+            // don't run the evaluation but just return a Results with all skipped
+            GroupEvaluator.Results(
+              newResults = sortedGroups.lookupKey(terminal).map(t =>
+                (t, TaskResult(Result.Skipped, recalc = () => Result.Success(-1)))
+              ).toMap,
+              newEvaluated = Seq.empty,
+              cached = false,
+              inputsHash = -1,
+              previousInputsHash = -1
+            )
 
-          if (failFast && res.newResults.values.exists(_.result.asSuccess.isEmpty))
-            failed.set(true)
+          } else {
+
+            val res = evaluateGroupCached(
+              terminal = terminal,
+              group = sortedGroups.lookupKey(terminal),
+              results = upstreamResults,
+              counterMsg = counterMsg,
+              zincProblemReporter = reporter,
+              testReporter = testReporter,
+              logger = contextLogger
+            )
+
+            if (failFast && res.newResults.values.exists(_.result.asSuccess.isEmpty))
+              failed.set(true)
+          }
 
           val endTime = System.nanoTime() / 1000
 

@@ -22,7 +22,7 @@ private object Plan {
 
     val sortedGroups: MultiBiMap[Terminal, Task[_]] =
       Graph.groupAroundImportantTargets(topoSorted) {
-        // important: all named tasks and those explicitly requested
+        // important == all named tasks and those explicitly requested
         case t: NamedTask[Any] =>
           val segments = t.ctx.segments
           val augmentedSegments =
