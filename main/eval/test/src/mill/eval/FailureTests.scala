@@ -194,5 +194,18 @@ object FailureTests extends TestSuite {
       assert(check(build.right).isRight)
       // assert(e.getMessage.contains("`dest` can only be used in one place"))
     }
+
+    "onlyDeps" - {
+      object build extends TestUtil.BaseModule {
+        def a = T { "a" }
+        def ab = T { s"${a}b" }
+        def abc = T { s"${ab()}c" }
+        def aac = T { s"${a()}${a()}c" }
+      }
+
+      val check = new TestEvaluator((build))
+      assert(check(Seq(build.ab), onlyDeps = true).isRight)
+    }
+
   }
 }

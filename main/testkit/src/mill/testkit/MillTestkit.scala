@@ -127,8 +127,11 @@ trait MillTestKit {
       }
     }
 
-    def apply(tasks: Seq[Task[_]]): Either[Result.Failing[_], (Seq[_], Int)] = {
-      val evaluated = evaluator.evaluate(tasks)
+    def apply(
+        tasks: Seq[Task[_]],
+        onlyDeps: Boolean = false
+    ): Either[Result.Failing[_], (Seq[_], Int)] = {
+      val evaluated = evaluator.evaluate(tasks, onlyDeps = onlyDeps)
 
       if (evaluated.failing.keyCount == 0) {
         Right(

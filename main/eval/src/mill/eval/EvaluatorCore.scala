@@ -182,19 +182,21 @@ private[mill] trait EvaluatorCore extends GroupEvaluator {
             tickerContext = GroupEvaluator.dynamicTickerPrefix.value
           )
 
-          val res = if (onlyDepsSkip) {
+          if (onlyDepsSkip) {
             // don't run the evaluation but just return a Results with all skipped
-            GroupEvaluator.Results(
-              newResults = sortedGroups.lookupKey(terminal).map(t =>
-                (t, TaskResult(Result.Skipped, recalc = () => Result.Success(-1)))
-              ).toMap,
-              newEvaluated = Seq.empty,
-              cached = false,
-              inputsHash = -1,
-              previousInputsHash = -1
-            )
+//            val res = GroupEvaluator.Results(
+//              newResults = sortedGroups.lookupKey(terminal).map(t =>
+//                (t, TaskResult(Result.Skipped, recalc = () => Result.Success(-1)))
+//              ).toMap,
+//              newEvaluated = Seq.empty,
+//              cached = false,
+//              inputsHash = -1,
+//              previousInputsHash = -1
+//            )
+//            println(res)
+          }
 
-          } else {
+          val res =  {
 
             val res = evaluateGroupCached(
               terminal = terminal,
@@ -208,6 +210,8 @@ private[mill] trait EvaluatorCore extends GroupEvaluator {
 
             if (failFast && res.newResults.values.exists(_.result.asSuccess.isEmpty))
               failed.set(true)
+
+            res
           }
 
           val endTime = System.nanoTime() / 1000
