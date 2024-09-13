@@ -138,7 +138,7 @@ object CoursierModule {
     ): Agg[PathRef] = {
       Lib.resolveDependencies(
         repositories = repositories,
-        deps = deps.map(implicitly[CoursierModule.Resolvable[T]].bind(_, bind)),
+        deps = deps.iterator.map(implicitly[CoursierModule.Resolvable[T]].bind(_, bind)),
         sources = sources,
         mapDependencies = mapDependencies,
         customizer = customizer,

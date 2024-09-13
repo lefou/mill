@@ -5,7 +5,7 @@ import coursier.error.FetchError.DownloadingArtifacts
 import coursier.error.ResolutionError.CantDownloadModule
 import coursier.params.ResolutionParams
 import coursier.parse.RepositoryParser
-import coursier.util.Task
+import coursier.util.{Artifact, Task}
 import coursier.{Artifacts, Classifier, Dependency, Repository, Resolution, Resolve}
 import mill.api.Loose.Agg
 import mill.api.{Ctx, PathRef, Result}
@@ -46,6 +46,32 @@ trait CoursierSupport {
       coursierCacheCustomizer: Option[FileCache[Task] => FileCache[Task]] = None,
       resolveFilter: os.Path => Boolean = _ => true
   ): Result[Agg[PathRef]] = {
+    resolveDetailedDependencies(
+      repositories = repositories,
+      deps = deps,
+      force = force,
+      sources = sources,
+      mapDependencies = mapDependencies,
+      customizer = customizer,
+      ctx = ctx,
+      coursierCacheCustomizer = coursierCacheCustomizer,
+      resolveFilter = resolveFilter
+    ).map(_.map(_._1))
+  }
+
+  def resolveDetailedDependencies(
+      repositories: Seq[Repository],
+      deps: IterableOnce[Dependency],
+      force: IterableOnce[Dependency],
+      sources: Boolean = false,
+      mapDependencies: Option[Dependency => Dependency] = None,
+      customizer: Option[Resolution => Resolution] = None,
+      ctx: Option[mill.api.Ctx.Log] = None,
+      coursierCacheCustomizer: Option[FileCache[Task] => FileCache[Task]] = None,
+      resolveFilter: os.Path => Boolean = _ => true,
+      fileExtFilter: os.Path => Boolean = file => file.ext == "jar"
+  ): Result[Seq[(PathRef, Option[Dependency])]] = {
+
     def isLocalTestDep(dep: Dependency): Option[Seq[PathRef]] = {
       val org = dep.module.organization.value
       val name = dep.module.name.value
@@ -100,14 +126,16 @@ trait CoursierSupport {
         case Left(error) =>
           Result.Exception(error, new Result.OuterStack((new Exception).getStackTrace))
         case Right(res) =>
-          Result.Success(
-            Agg.from(
-              res.files
-                .map(os.Path(_))
-                .filter(path => path.ext == "jar" && resolveFilter(path))
-                .map(PathRef(_, quick = true))
-            ) ++ localTestDeps.flatten
-          )
+          val resolved = res.fullDetailedArtifacts
+            .collect {
+              case (dependency, publication, artifact, Some(file)) =>
+                (os.Path(file), dependency)
+            }
+            .collect {
+              case (path, dep) if fileExtFilter(path) && resolveFilter(path) =>
+                (PathRef(path, quick = true), Some(dep))
+            }
+          Result.Success(resolved ++ localTestDeps.flatten.map((_, None)))
       }
     }
   }
