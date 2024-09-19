@@ -333,7 +333,7 @@ private class MillBuildServer(
       hint = "buildTargetDependencyModules",
       targetIds = _ => params.getTargets.asScala.toSeq,
       tasks = { case m: JavaModule =>
-        Task.Anon { (m.transitiveCompileIvyDeps(), m.transitiveIvyDeps(), m.unmanagedClasspath()) }
+        Task.Anon { (m.transitiveCompileIvyDeps(), m.transitiveIvyDeps(), m.unmanagedClasspath(), m.resolvedIvyDeps()) }
       }
     ) {
       case (
@@ -341,7 +341,7 @@ private class MillBuildServer(
             state,
             id,
             m: JavaModule,
-            (transitiveCompileIvyDeps, transitiveIvyDeps, unmanagedClasspath)
+            (transitiveCompileIvyDeps, transitiveIvyDeps, unmanagedClasspath, resolvedIvyDeps)
           ) =>
         val ivy = transitiveCompileIvyDeps ++ transitiveIvyDeps
         val deps = ivy.map { dep =>
