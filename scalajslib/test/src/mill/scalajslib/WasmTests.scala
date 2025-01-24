@@ -14,7 +14,7 @@ object WasmTests extends TestSuite {
   object Wasm extends TestBaseModule with ScalaJSModule {
     override def scalaVersion = sys.props.getOrElse("TEST_SCALA_2_13_VERSION", ???)
 
-    override def scalaJSVersion = "1.17.0"
+    override def scalaJSVersion = "1.18.2"
 
     override def moduleKind = ModuleKind.ESModule
 
