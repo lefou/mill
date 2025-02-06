@@ -168,8 +168,6 @@ trait KotlinJsModule extends KotlinModule { outer =>
           envArgs = envArgs,
           workingDir = workingDir
         )
-      case Some(x) =>
-        Result.Failure(s"Run target $x is not supported")
       case None =>
         Result.Failure("Executable binary should have a run target selected.")
     }
