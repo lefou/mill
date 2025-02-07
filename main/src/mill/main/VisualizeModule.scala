@@ -39,7 +39,7 @@ trait VisualizeModule extends mill.define.TaskModule {
   def worker: Worker[(
       LinkedBlockingQueue[(Seq[NamedTask[Any]], Seq[NamedTask[Any]], os.Path)],
       LinkedBlockingQueue[Result[Seq[PathRef]]]
-  )] = Target.worker {
+  )] = mill.define.Task.Worker {
     val in = new LinkedBlockingQueue[(Seq[NamedTask[Any]], Seq[NamedTask[Any]], os.Path)]()
     val out = new LinkedBlockingQueue[Result[Seq[PathRef]]]()
 
@@ -81,7 +81,7 @@ trait VisualizeModule extends mill.define.TaskModule {
 
           org.jgrapht.alg.TransitiveReduction.INSTANCE.reduce(jgraph)
           val nodes = indexToTask.map(t =>
-            node(plan.sortedGroups.lookupValue(t).render)
+            node(plan.sortedGroups.lookupValue(t).toString)
               .`with` {
                 if (tasks.contains(t)) Style.SOLID
                 else Style.DASHED
@@ -102,10 +102,12 @@ trait VisualizeModule extends mill.define.TaskModule {
 
           g = g.graphAttr().`with`(Rank.dir(RankDir.LEFT_TO_RIGHT))
 
-          mill.util.Jvm.runSubprocess(
-            "mill.main.graphviz.GraphvizTools",
-            classpath().map(_.path),
-            mainArgs = Seq(s"${os.temp(g.toString)};$dest;txt,dot,json,png,svg")
+          mill.util.Jvm.callProcess(
+            mainClass = "mill.main.graphviz.GraphvizTools",
+            classPath = classpath().map(_.path).toVector,
+            mainArgs = Seq(s"${os.temp(g.toString)};$dest;txt,dot,json,png,svg"),
+            stdin = os.Inherit,
+            stdout = os.Inherit
           )
 
           os.list(dest).sorted.map(PathRef(_))

@@ -6,7 +6,6 @@ import mill.define.{BaseModule, Segments, Task}
 import mill.eval.Evaluator.{Results, formatFailing}
 import mill.util.{ColorLogger, MultiBiMap}
 
-import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 import scala.util.DynamicVariable
@@ -33,29 +32,13 @@ trait Evaluator extends AutoCloseable {
     }
   def disableCallgraphInvalidation: Boolean = false
 
-  @deprecated(
-    "Binary compatibility shim. Use overload with parameter serialCommandExec=false instead",
-    "Mill 0.12.0-RC1"
-  )
-  def evaluate(
-      goals: Agg[Task[_]],
-      reporter: Int => Option[CompileProblemReporter],
-      testReporter: TestReporter,
-      logger: ColorLogger
-  ): Evaluator.Results = evaluate(goals, reporter, testReporter, logger, serialCommandExec = false)
-
   def evaluate(
       goals: Agg[Task[_]],
       reporter: Int => Option[CompileProblemReporter] = _ => Option.empty[CompileProblemReporter],
       testReporter: TestReporter = DummyTestReporter,
       logger: ColorLogger = baseLogger,
       serialCommandExec: Boolean = false
-  ): Evaluator.Results = {
-    // TODO: cleanup once we break bin-compat in Mill 0.13
-    // this method should be abstract, but to preserve bin-compat, we default-implement
-    // by delegating to an binary pre-existing overload, by ignoring the new parameters
-    evaluate(goals, reporter, testReporter, logger): @nowarn("cat=deprecation")
-  }
+  ): Evaluator.Results
 
   def withBaseLogger(newBaseLogger: ColorLogger): Evaluator
   def withFailFast(newFailFast: Boolean): Evaluator
@@ -77,7 +60,7 @@ object Evaluator {
     def rawValues: Seq[Result[Val]]
     def evaluated: Agg[Task[_]]
     def transitive: Agg[Task[_]]
-    def failing: MultiBiMap[Terminal, Result.Failing[Val]]
+    def failing: MultiBiMap[Task[_], Result.Failing[Val]]
     def results: collection.Map[Task[_], TaskResult[Val]]
     def values: Seq[Val] = rawValues.collect { case Result.Success(v) => v }
   }
@@ -111,7 +94,7 @@ object Evaluator {
           case Result.Exception(Result.Failure(t, _), _) => t
           case ex: Result.Exception => ex.toString
         }
-        s"${k.render} ${fss.iterator.mkString(", ")}"
+        s"${k} ${fss.iterator.mkString(", ")}"
       }).mkString("\n")
   }
 
