@@ -16,6 +16,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -35,8 +36,8 @@ public class Util {
     return 101;
   }
 
-  public static boolean isWindows =
-      System.getProperty("os.name").toLowerCase().startsWith("windows");
+    public static boolean isWindows =
+            System.getProperty("os.name").toLowerCase(Locale.ROOT).startsWith("windows");
   public static boolean isJava9OrAbove =
       !System.getProperty("java.specification.version").startsWith("1.");
   private static Charset utf8 = Charset.forName("UTF-8");
