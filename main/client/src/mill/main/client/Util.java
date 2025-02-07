@@ -13,8 +13,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -54,6 +54,7 @@ public class Util {
    * This method takes into account these differences and is compatible with
    * both JDK versions before 22 and later.
    */
+  @SuppressWarnings("SystemConsoleNull")
   public static boolean hasConsole() {
     Console console = System.console();
 
@@ -143,7 +144,7 @@ public class Util {
   }
 
   /**
-   * @return Hex encoded MD5 hash of input string.
+   * Returns hex encoded MD5 hash of input string.
    */
   public static String md5hex(String str) throws NoSuchAlgorithmException {
     return hexArray(MessageDigest.getInstance("md5").digest(str.getBytes(StandardCharsets.UTF_8)));
@@ -168,8 +169,8 @@ public class Util {
    * @return The non-empty lines of the files or an empty list, if the file does not exist
    */
   public static List<String> readOptsFileLines(final Path file) throws Exception {
-    final List<String> vmOptions = new LinkedList<>();
-    try (final Scanner sc = new Scanner(file.toFile())) {
+    final List<String> vmOptions = new ArrayList<>();
+    try (final Scanner sc = new Scanner(file.toFile(), StandardCharsets.UTF_8)) {
       final Map<String, String> env = System.getenv();
       while (sc.hasNextLine()) {
         String arg = sc.nextLine();
