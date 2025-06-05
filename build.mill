@@ -8,9 +8,9 @@ import mill._
 import mill.define.NamedTask
 import mill.main.Tasks
 import mill.scalalib._
-import mill.scalalib.api.ZincWorkerUtil
+import mill.scalalib.api.JvmWorkerUtil
 import mill.scalalib.publish._
-import mill.resolve.SelectMode
+import mill.define.SelectMode
 import mill.T
 import mill.define.Cross
 
@@ -403,8 +403,10 @@ trait MillJavaModule extends JavaModule {
         f.dep.module.organization.value == dep.module.organization.value &&
           f.dep.module.name.value == dep.module.name.value
       ).map { forced =>
-        val newDep = dep.withVersion(forced.dep.version)
-        Task.log.debug(s"Forcing version of ${dep.module} from ${dep.version} to ${newDep.version}")
+        val newDep = dep.withVersionConstraint(forced.dep.versionConstraint)
+        Task.log.debug(
+          s"Forcing version of ${dep.module} from ${dep.versionConstraint.asString} to ${newDep.versionConstraint.asString}"
+        )
         newDep
       }.getOrElse(dep)
     }
@@ -455,7 +457,7 @@ object MillPublishJavaModule {
  */
 trait MillScalaModule extends ScalaModule with MillJavaModule with ScalafixModule { outer =>
   def scalaVersion = Deps.scalaVersion
-  def scalafixScalaBinaryVersion = ZincWorkerUtil.scalaBinaryVersion(scalaVersion())
+  def scalafixScalaBinaryVersion = JvmWorkerUtil.scalaBinaryVersion(scalaVersion())
   def semanticDbVersion = Deps.semanticDBscala.version
   def scalacOptions =
     super.scalacOptions() ++ Seq(
@@ -504,12 +506,12 @@ trait MillBaseTestsModule extends TestModule {
       s"-DTEST_SCALA_3_3_VERSION=${Deps.testScala33Version}",
       s"-DTEST_SCALAJS_VERSION=${Deps.Scalajs_1.scalaJsVersion}",
       s"-DTEST_SCALANATIVE_0_5_VERSION=${Deps.Scalanative_0_5.scalanativeVersion}",
-      s"-DTEST_UTEST_VERSION=${Deps.TestDeps.utest.dep.version}",
-      s"-DTEST_SCALATEST_VERSION=${Deps.TestDeps.scalaTest.dep.version}",
-      s"-DTEST_TEST_INTERFACE_VERSION=${Deps.sbtTestInterface.dep.version}",
-      s"-DTEST_ZIOTEST_VERSION=${Deps.TestDeps.zioTest.dep.version}",
-      s"-DTEST_ZINC_VERSION=${Deps.zinc.dep.version}",
-      s"-DTEST_KOTLIN_VERSION=${Deps.kotlinCompiler.dep.version}",
+      s"-DTEST_UTEST_VERSION=${Deps.TestDeps.utest.version}",
+      s"-DTEST_SCALATEST_VERSION=${Deps.TestDeps.scalaTest.version}",
+      s"-DTEST_TEST_INTERFACE_VERSION=${Deps.sbtTestInterface.version}",
+      s"-DTEST_ZIOTEST_VERSION=${Deps.TestDeps.zioTest.version}",
+      s"-DTEST_ZINC_VERSION=${Deps.zinc.version}",
+      s"-DTEST_KOTLIN_VERSION=${Deps.kotlinCompiler.version}",
       s"-DTEST_SBT_VERSION=${Deps.sbt.version}"
     )
   }
@@ -664,10 +666,7 @@ trait BridgeModule extends MillPublishCrossScalaModule {
   )
 
   def compilerBridgeSourceJars: T[Agg[PathRef]] = Task {
-    resolveDeps(
-      Task.Anon { compilerBridgeIvyDeps().map(bindDependency()) },
-      sources = true
-    )()
+    defaultResolver().classpath(compilerBridgeIvyDeps(), sources = true)
   }
 
   def generatedSources = Task {
@@ -682,7 +681,7 @@ trait BridgeModule extends MillPublishCrossScalaModule {
 
 def formatDep(dep: Dep) = {
   val d = Lib.depToDependency(dep, Deps.scalaVersion)
-  s"${d.module.organization.value}:${d.module.name.value}:${d.version}"
+  s"${d.module.organization.value}:${d.module.name.value}:${d.versionConstraint.asString}"
 }
 
 def listIn(path: os.Path) = interp.watchValue(os.list(path).map(_.last))

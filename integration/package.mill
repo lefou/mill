@@ -102,19 +102,19 @@ object `package` extends RootModule {
     }
   }
 
-  object failure extends Cross[IntegrationCrossModule](build.listIn(millSourcePath / "failure"))
-  object feature extends Cross[IntegrationCrossModule](build.listIn(millSourcePath / "feature"))
+  object failure extends Cross[IntegrationCrossModule](build.listIn(moduleDir / "failure"))
+  object feature extends Cross[IntegrationCrossModule](build.listIn(moduleDir / "feature"))
   object invalidation
-      extends Cross[IntegrationCrossModule](build.listIn(millSourcePath / "invalidation"))
-  object ide extends Cross[IdeIntegrationCrossModule](build.listIn(millSourcePath / "ide"))
+      extends Cross[IntegrationCrossModule](build.listIn(moduleDir / "invalidation"))
+  object ide extends Cross[IdeIntegrationCrossModule](build.listIn(moduleDir / "ide"))
   object migrating
-      extends Cross[IdeIntegrationCrossModule](build.listIn(millSourcePath / "migrating"))
+      extends Cross[IdeIntegrationCrossModule](build.listIn(moduleDir / "migrating"))
   trait IntegrationCrossModule extends build.MillScalaModule with IntegrationTestModule {
     override def moduleDeps = super[IntegrationTestModule].moduleDeps
     def forkEnv = super.forkEnv() ++ Seq(
       "MILL_PROJECT_ROOT" -> Task.workspace.toString,
       "TEST_SCALA_2_13_VERSION" -> build.Deps.testScala213Version,
-      "TEST_KOTLIN_VERSION" -> build.Deps.kotlinCompiler.dep.version
+      "TEST_KOTLIN_VERSION" -> build.Deps.kotlinCompiler.version
     )
   }
   trait IdeIntegrationCrossModule extends IntegrationCrossModule {

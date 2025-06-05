@@ -19,7 +19,7 @@ object `package` extends RootModule {
         !ref.path.lastOpt.exists(_.startsWith("dependency_2.13-"))
       }
     def scalaVersion = build.Deps.scalaVersion
-    def moduleDeps = build.millInternal.modules.collect {
+    def moduleDeps = build.moduleInternal.modules.collect {
       case m: build.MillStableScalaModule => m
       case m: JavaModule if m eq build.kotlinlib => m
     }
@@ -64,7 +64,7 @@ object `package` extends RootModule {
     PathRef(workDir / "build/site")
   }
 
-  def source0 = Task.Source(millSourcePath)
+  def source0 = Task.Source(moduleDir)
   def projectChangelog = Task.Source(Task.workspace / "changelog.adoc")
   def source = Task {
     os.copy(source0().path, Task.dest, mergeFolders = true)
@@ -77,7 +77,7 @@ object `package` extends RootModule {
     val renderedExamples: Seq[(os.SubPath, PathRef)] =
       Task.traverse(build.example.exampleModules)(m =>
         Task.Anon {
-          (m.millSourcePath.subRelativeTo(build.example.millSourcePath), m.rendered())
+          (m.moduleDir.subRelativeTo(build.example.moduleDir), m.rendered())
         }
       )()
 
@@ -99,7 +99,7 @@ object `package` extends RootModule {
       createFolders = true
     )
 
-    expandDiagramsInDirectoryAdocFile(Task.dest, mill.main.VisualizeModule.classpath().map(_.path))
+    expandDiagramsInDirectoryAdocFile(Task.dest, mill.main.VisualizeModule.toolsClasspath().map(_.path))
 
     PathRef(Task.dest)
   }
@@ -166,7 +166,7 @@ object `package` extends RootModule {
 
   }
 
-  def supplementalFiles = Task.Source(millSourcePath / "supplemental-ui")
+  def supplementalFiles = Task.Source("supplemental-ui")
 
   /**
    * The doc root ready to be built by antora for the current branch.
@@ -209,10 +209,10 @@ object `package` extends RootModule {
     os.write.over(dest / "antora.yml", (lines ++ newLines).mkString("\n"))
   }
 
-  def blogFolder0 = Task.Source(build.millSourcePath / "blog")
+  def blogFolder0 = Task.Source("blog")
   def blogFolder = Task {
     os.copy(blogFolder0().path, Task.dest, mergeFolders = true)
-    expandDiagramsInDirectoryAdocFile(Task.dest, mill.main.VisualizeModule.classpath().map(_.path))
+    expandDiagramsInDirectoryAdocFile(Task.dest, mill.main.VisualizeModule.toolsClasspath().map(_.path))
     PathRef(Task.dest)
   }
   def githubPagesPlaybookText(authorMode: Boolean) = Task.Anon { extraSources: Seq[os.Path] =>
@@ -258,7 +258,7 @@ object `package` extends RootModule {
        |    mill-doc-url: ${if (authorMode) s"file://${Task.dest}/site" else build.Settings.docUrl}
        |    utest-github-url: https://github.com/com-lihaoyi/utest
        |    upickle-github-url: https://github.com/com-lihaoyi/upickle
-       |    mill-scip-version: ${build.Deps.DocDeps.millScip.dep.version}
+       |    mill-scip-version: ${build.Deps.DocDeps.millScip.version}
        |antora:
        |  extensions:
        |  - require: '@antora/lunr-extension'
@@ -288,13 +288,13 @@ object `package` extends RootModule {
       os.proc("./mill", "-i", "docs.source").call(cwd = checkout, stdout = os.Inherit)
       expandDiagramsInDirectoryAdocFile(
         outputFolder,
-        mill.main.VisualizeModule.classpath().map(_.path)
+        mill.main.VisualizeModule.toolsClasspath().map(_.path)
       )
 
       val millDownloadUrl =
         if (
           Ordering.Implicits.seqOrdering[Seq, String].lt(
-            millLastTag.split('.'),
+            millLastTag.split('.').toIndexedSeq,
             Seq("0", "12", "6")
           )
         ) {
@@ -313,21 +313,21 @@ object `package` extends RootModule {
 
   def localPages: T[PathRef] = Task {
     val pages = generatePages(authorMode = true)().apply(oldDocSources().map(_.path))
-    Task.log.outputStream.println(
+    Task.log.streams.out.println(
       s"You can browse the pages at: ${(pages.path / "index.html").toNIO.toUri()}"
     )
     pages
   }
   def fastPages: T[PathRef] = Task {
     val pages = generatePages(authorMode = true)().apply(Nil)
-    Task.log.outputStream.println(
+    Task.log.streams.out.println(
       s"You can browse the pages at: ${(pages.path / "index.html").toNIO.toUri()}"
     )
     pages
   }
 
   def generatePages(authorMode: Boolean) = Task.Anon { extraSources: Seq[os.Path] =>
-    Task.log.errorStream.println("Creating Antora playbook ...")
+    Task.log.streams.err.println("Creating Antora playbook ...")
     // dependency to sources
     source()
     val docSite = Task.dest
@@ -338,7 +338,7 @@ object `package` extends RootModule {
       data = githubPagesPlaybookText(authorMode)().apply(extraSources),
       createFolders = true
     )
-    Task.log.errorStream.println("Running Antora ...")
+    Task.log.streams.err.println("Running Antora ...")
     runAntora(
       npmDir = npmBase(),
       workDir = docSite,
@@ -354,12 +354,12 @@ object `package` extends RootModule {
     os.write(siteDir / ".nojekyll", "")
 
     // sanitize devAntora source URLs
-    Task.log.errorStream.println("Sanitizing links ...")
+    Task.log.streams.err.println("Sanitizing links ...")
     sanitizeDevUrls(siteDir, devAntoraSources().path, build.baseDir / "docs", build.baseDir)
 
     // only copy the "api" sub-dir; api docs contains a top-level index.html with we don't want
     val unidocSrc = if (authorMode) site.unidocLocal().path else site.unidocSite().path
-    Task.log.errorStream.println(s"Copying API docs from ${unidocSrc} ...")
+    Task.log.streams.err.println(s"Copying API docs from ${unidocSrc} ...")
     os.copy(unidocSrc, siteDir / "api/latest", createFolders = true)
 
     PathRef(siteDir)

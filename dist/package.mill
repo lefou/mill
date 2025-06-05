@@ -10,7 +10,7 @@ import scala.util.Using
 trait InstallModule extends build.MillPublishJavaModule {
   // All modules that we want to aggregate as part of this `dev` assembly.
   // Excluding itself, and the `dist` module that uses it
-  lazy val allPublishModules = build.millInternal.modules.collect {
+  lazy val allPublishModules = build.moduleInternal.modules.collect {
     case m: PublishModule if (m ne build.dist) && (m ne build.dist.native) => m
   }
   def moduleDeps = Seq(build.runner, build.idea, build.main.init)
@@ -45,7 +45,7 @@ trait InstallModule extends build.MillPublishJavaModule {
         (os.home / ".cache/mill/download" / (build.millVersion() + cacheBinarySuffix + batExt)).toString()
       )
     )()
-    Task.log.outputStream.println(path.toString())
+    Task.log.streams.out.println(path.toString())
     PathRef(path)
   }
 
@@ -373,9 +373,9 @@ object `package` extends RootModule with InstallModule {
 
     def nativeImageOptions = Seq("--no-fallback", "--enable-url-protocols=https", "-Os")
 
-    def zincWorker = ModuleRef(ZincWorkerGraalvm)
+    def zincWorker = ModuleRef(JvmWorkerGraalvm)
 
-    object ZincWorkerGraalvm extends ZincWorkerModule {
+    object JvmWorkerGraalvm extends JvmWorkerModule {
       def jvmId = build.Settings.graalvmJvmId
     }
   }

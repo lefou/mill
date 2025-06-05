@@ -18,7 +18,7 @@ object `package` extends RootModule with build.MillStableScalaModule with BuildI
 
     def formatDep(dep: Dep) = {
       val d = resolve(dep)
-      s"${d.module.organization.value}:${d.module.name.value}:${d.version}"
+      s"${d.module.organization.value}:${d.module.name.value}:${d.versionConstraint.asString}"
     }
 
     Seq(
