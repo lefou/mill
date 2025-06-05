@@ -6,9 +6,6 @@ import mill.contrib.buildinfo.BuildInfo
 import mill.T
 import mill.define.Cross
 
-// plugins and dependencies
-import $meta._
-
 object `package` extends RootModule {
   def contribModules: Seq[ContribModule] =
     moduleInternal.modules.collect { case m: ContribModule => m }

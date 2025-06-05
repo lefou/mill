@@ -1,10 +1,8 @@
 package build.scalajslib
 
-// imports
 import mill._
 import mill.scalalib._
 import mill.contrib.buildinfo.BuildInfo
-import mill.T
 import mill.define.Cross
 
 object `package` extends RootModule with build.MillStableScalaModule with BuildInfo {

@@ -1,9 +1,11 @@
 package build.dist
-import mill._, scalalib._, publish._
-import mill.define.ModuleRef
-import mill.util.Jvm
-import mill.api.JarManifest
+
 import de.tobiasroeser.mill.vcs.version.VcsVersion
+import mill._
+import mill.define.ModuleRef
+import mill.scalalib._
+import mill.scalalib.publish._
+import mill.util.Jvm
 
 import scala.util.Using
 

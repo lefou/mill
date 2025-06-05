@@ -1,8 +1,9 @@
 package build.scalalib
+
 import mill._
 import mill.contrib.buildinfo.BuildInfo
-
 import scala.util.chaining._
+
 object `package` extends RootModule with build.MillStableScalaModule {
   def moduleDeps = Seq(build.main, build.scalalib.api, build.testrunner)
   def ivyDeps = Agg(

@@ -1,4 +1,5 @@
 package build.docs
+
 import org.jsoup._
 import mill.util.Jvm
 import mill._, scalalib._

@@ -1,10 +1,8 @@
 package build.main
-// imports
+
 import mill._
 import mill.scalalib._
 import mill.contrib.buildinfo.BuildInfo
-import mill.T
-import mill.define.Cross
 import mill.scalalib.api.JvmWorkerUtil
 
 object `package` extends RootModule with build.MillStableScalaModule with BuildInfo {

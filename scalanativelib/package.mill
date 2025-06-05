@@ -1,7 +1,6 @@
 package build.scalanativelib
-// imports
+
 import mill._
-import mill.T
 import mill.define.Cross
 
 object `package` extends RootModule with build.MillStableScalaModule {

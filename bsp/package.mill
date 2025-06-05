@@ -1,5 +1,5 @@
 package build.bsp
-// imports
+
 import mill._
 import mill.contrib.buildinfo.BuildInfo
 import mill.T
